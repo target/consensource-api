@@ -1,0 +1,8 @@
+# Rust artifacts
+**/target/
+**/**/*.rs.bk
+**/build
+**/proto
+**/Cargo.lock
+**/**/protobuf
+**/secrets.yaml
