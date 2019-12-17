@@ -18,6 +18,7 @@ before_install:
     # Install latest stable/nightly of rust toolchain & linter (rustfmt)
     - rustup toolchain install nightly # Nightly needed for rocket rest api
     - rustup component add rustfmt --toolchain nightly
+    - rustup default nightly
 
 before_script:
     - echo $TRAVIS_COMMIT
