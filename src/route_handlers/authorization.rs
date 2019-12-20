@@ -9,24 +9,20 @@ use diesel::prelude::*;
 use errors::ApiError;
 use jwt;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UserCreate {
     /// The users's public key for their on-chain identity
-    public_key: String,
-
+    pub public_key: String,
     /// The batch used to create this user's on-chain identity
-    batch_id: String,
-
+    pub batch_id: String,
     /// The transaction used to create this user's on-chain identity
-    transaction_id: String,
-
+    pub transaction_id: String,
     /// A base64-encoded encrypted string of the private key
-    encrypted_private_key: String,
-
+    pub encrypted_private_key: String,
     /// A site-specific username
-    username: String,
+    pub username: String,
     /// The hash of the site-specific password
-    password: String,
+    pub password: String,
 }
 
 #[post("/users", format = "application/json", data = "<payload>")]
@@ -55,16 +51,16 @@ pub fn create_user(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct UserUpdate {
     /// A site-specific username
-    username: String,
+    pub username: String,
     /// The hash of the previous password
-    old_password: String,
+    pub old_password: String,
     /// The hash of the site-specific password
-    password: String,
+    pub password: String,
     /// A base64-encoded encrypted string of the private key
-    encrypted_private_key: String,
+    pub encrypted_private_key: String,
 }
 
 #[patch("/users/<public_key>", format = "application/json", data = "<payload>")]
@@ -91,12 +87,12 @@ pub fn update_user(
     Err(ApiError::Unauthorized)
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UserAuthenticate {
     /// A site-specific username
-    username: String,
+    pub username: String,
     /// The hash of the site-specific password
-    password: String,
+    pub password: String,
 }
 
 #[post("/users/authenticate", format = "application/json", data = "<payload>")]
@@ -114,6 +110,11 @@ pub fn authenticate(payload: Json<UserAuthenticate>, conn: DbConn) -> Result<Jso
     }
 
     Err(ApiError::Unauthorized)
+}
+
+/// Returns a BCrypt-hashed password
+pub fn hash_password(password: &str) -> Result<String, ApiError> {
+    hash(password, 4).map_err(ApiError::from)
 }
 
 /// Find a User by username
@@ -159,11 +160,6 @@ fn save_password_change(
         .execute(&**conn)
         .map(|_| ())
         .map_err(|e| ApiError::InternalError(format!("Unable to access database: {}", e)))
-}
-
-/// Returns a BCrypt-hashed password
-fn hash_password(password: &str) -> Result<String, ApiError> {
-    hash(password, 4).map_err(ApiError::from)
 }
 
 impl From<BcryptError> for ApiError {

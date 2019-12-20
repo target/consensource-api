@@ -65,6 +65,7 @@ fn files(file: PathBuf) -> Option<NamedFile> {
     NamedFile::open(Path::new("../client/public/").join(file)).ok()
 }
 
+#[cfg_attr(tarpaulin, skip)]
 fn main() {
     let matches = clap_app!(cert_registry_rest_api =>
     (version: crate_version!())

@@ -9,7 +9,7 @@ use rocket::request::Form;
 use rocket_contrib::json::JsonValue;
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApiOrganization {
     id: String,
     name: String,
@@ -26,7 +26,7 @@ impl<'a> From<&'a Organization> for ApiOrganization {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ApiAgent {
     public_key: String,
     name: String,
