@@ -1,3 +1,6 @@
+##########################################################
+# This compose file is for running tests with tarpaulin
+#########################################################
 version: "3"
 
 services:
@@ -5,25 +8,22 @@ services:
     image: postgres:alpine
     container_name: test-postgres
     restart: always
-    build:
-      context: ../..
     environment:
       POSTGRES_USER: cert-registry
       POSTGRES_PASSWORD: cert-registry
       POSTGRES_DB: cert-registry
     volumes:
-      - "../../database/tables:/docker-entrypoint-initdb.d"
+      - "./tables:/docker-entrypoint-initdb.d"
     ports:
       - "5432:5432"
     expose:
       - 5432
   
   test-rest-api:
-    image: consensource-rest-api:test
+    image: target/consensource-api:tarpaulin
     container_name: test-rest-api
-    build:
-      context: ../..
-      dockerfile: ./rest_api/Dockerfile.two
+    volumes:
+      - ./../:/tarpaulin
     security_opt:
       - seccomp:unconfined
     ports:
@@ -51,6 +51,9 @@ services:
           sleep 1
         done
         
-        cargo tarpaulin -- --nocapture --test-threads=1
-        cargo test -- --nocapture --test-threads=1
+        cd tarpaulin
+        TRAVIS_JOB_ID=$$(<TRAVIS_JOB_ID.txt) # Extract TRAVIS_JOB_ID for coveralls
+
+        set -e # Exit on errors
+        cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID -- --nocapture --test-threads=1
       "

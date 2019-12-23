@@ -1,37 +1,26 @@
-language: rust
-rust:
-    - 1.39.0
+language: minimal
+services:
+  - docker
 
-before_install:
-    # Install ZMQ
-    - sudo apt-get update 
-    - sudo apt-get install -y libzmq3-dev unzip protobuf-compiler nodejs npm
-    - sudo apt-get install -y libssl-dev pkg-config cmake zlib1g-dev # for tarapulin
-    - sudo apt-get clean
-    # Install protoc for protoc-rust crate (automate protobuf generation)
-    - curl -OLsS https://github.com/google/protobuf/releases/download/v3.6.1/protoc-3.6.1-linux-x86_64.zip
-    - unzip protoc-3.6.1-linux-x86_64.zip -d protoc3
-    - rm protoc-3.6.1-linux-x86_64.zip
-    # Set system protoc to protoc3 (defaults to protoc2)
-    - sudo mv protoc3/bin/* /usr/local/bin/
-    - sudo mv protoc3/include/* /usr/local/include/
-    - rm -rf protoc3/
-    # Install latest stable/nightly of rust toolchain & linter (rustfmt)
-    - rustup toolchain install nightly # Nightly needed for rocket rest api
-    - rustup component add rustfmt --toolchain nightly
-    - rustup default nightly
-    - cargo install cargo-tarpaulin
+env:
+  COMPOSE_VERSION="1.24.1"
+
+# Install compose & download tarpaulin test image for rest-api
+install:
+  - curl -L https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
+  - chmod +x docker-compose
+  - yes | sudo mv docker-compose /usr/local/bin
 
 before_script:
-    - echo $TRAVIS_COMMIT
-    - echo $TRAVIS_TAG
-    - echo $TRAVIS_BRANCH
-    - echo $TRAVIS_BUILD_NUMBER
-    - echo $TRAVIS_REPO_SLUG
+  - echo $TRAVIS_COMMIT
+  - echo $TRAVIS_TAG
+  - echo $TRAVIS_BRANCH
+  - echo $TRAVIS_BUILD_NUMBER
+  - echo $TRAVIS_REPO_SLUG
+  - echo $TRAVIS_JOB_ID >> TRAVIS_JOB_ID.txt # This file will be mounted into the test-rest-api container
 
 script:
-    # Lint, build common
-    - cargo fmt -- --check
-    - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-    - cargo build
+  # Run compose file in test/docker-compose.yaml 
+  # - cargo fmt -- --check
+  - yes | docker-compose -f test/docker-compose.yaml up --exit-code-from test-rest-api 
     
