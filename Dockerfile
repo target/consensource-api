@@ -1,4 +1,4 @@
-FROM target/consensource-rust:1.39-nightly
+FROM target/consensource-rust:nightly
 
 RUN apt-get update && apt-get install -y unzip libzmq3-dev protobuf-compiler wget
 
