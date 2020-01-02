@@ -1,4 +1,4 @@
-# ConsenSource rest api [![Build Status](https://travis-ci.org/target/consensource-api.svg?branch=master)](https://travis-ci.org/target/consensource-api) [![Coverage Status](https://coveralls.io/repos/github/target/consensource-api/badge.svg?branch=master)](https://coveralls.io/github/target/consensource-api?branch=master)
+# ConsenSource rest api [![Build Status](https://travis-ci.org/target/consensource-api.svg?branch=master)](https://travis-ci.org/target/consensource-api) [![Coverage Status](https://img.shields.io/coveralls/github/target/consensource-api)](https://coveralls.io/github/target/consensource-api?branch=master)
 
 The ConsenSource rest api is a Rust server that has endpoints for fetching data
 from Postgres, and posting transactions/batches to the Processor.
