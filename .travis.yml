@@ -1,11 +1,17 @@
-language: minimal
+language: rust
+rust:
+  - nightly
 services:
   - docker
 
 env:
   COMPOSE_VERSION="1.24.1"
 
-# Install compose & download tarpaulin test image for rest-api
+# Install latest nightly of rust toolchain & linter (rustfmt)
+before_install:
+  - rustup component add rustfmt --toolchain nightly
+
+# Install docker-compose
 install:
   - curl -L https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m` > docker-compose
   - chmod +x docker-compose
@@ -20,7 +26,6 @@ before_script:
   - echo $TRAVIS_JOB_ID
 
 script:
-  # Run compose file in test/docker-compose.yaml 
-  - cargo fmt -- --check
-  - yes | docker-compose -f test/docker-compose.yaml up --exit-code-from test-rest-api 
+  - cargo fmt -- --check || travis_terminate 1; # Run lint, stop build if error
+  - docker-compose -f test/docker-compose.yaml up --exit-code-from test-rest-api # Run tests
     
