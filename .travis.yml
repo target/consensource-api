@@ -17,10 +17,10 @@ before_script:
   - echo $TRAVIS_BRANCH
   - echo $TRAVIS_BUILD_NUMBER
   - echo $TRAVIS_REPO_SLUG
-  - echo $TRAVIS_JOB_ID >> TRAVIS_JOB_ID.txt # This file will be mounted into the test-rest-api container
+  - echo $TRAVIS_JOB_ID
 
 script:
   # Run compose file in test/docker-compose.yaml 
-  # - cargo fmt -- --check
+  - cargo fmt -- --check
   - yes | docker-compose -f test/docker-compose.yaml up --exit-code-from test-rest-api 
     
