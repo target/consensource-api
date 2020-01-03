@@ -52,8 +52,13 @@ cargo +nightly fmt -- --check
 ```
 
 ### Test 
-``` 
-cargo test 
+
+Most of the Rest API tests are integration tests. To startup a Postgres and Rest API instance 
+and run these tests with code coverage metrics:
+
+```
+cd test
+docker-compose up
 ```
 
 ### Build 

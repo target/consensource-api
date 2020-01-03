@@ -27,5 +27,6 @@ before_script:
 
 script:
   - cargo fmt -- --check || travis_terminate 1; # Run lint, stop build if error
+  - export SEND_REPORT=1 # Set env var to publish tarpaulin report
   - docker-compose -f test/docker-compose.yaml up --exit-code-from test-rest-api # Run tests
     
