@@ -114,7 +114,7 @@ impl WatcherThread {
             }
         });
 
-        error!("Starting SSE server on {}:{}", host, port);
+        info!("Starting SSE server on {}:{}", host, port);
         WatcherThread {
             join_handle: start_sse_server(host, port),
         }

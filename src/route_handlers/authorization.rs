@@ -25,7 +25,7 @@ pub struct UserCreate {
     pub password: String,
 }
 
-#[post("/users", format = "application/json", data = "<payload>")]
+#[post("/users", format = "application/json", data = "<payload>", rank = 1)]
 pub fn create_user(
     payload: Json<UserCreate>,
     _claims: jwt::JWT,
@@ -49,6 +49,16 @@ pub fn create_user(
         save_user(&conn, user)?;
         Ok(json!({"status": "ok"}))
     }
+}
+
+/// If a user creation fails due to JWT authentication issues,
+/// return a more specific error message.
+///
+/// Without this endpoint, when JWT auth fails there is nowhere to forward
+/// the request to and the client receives a 404 error.
+#[post("/users", format = "application/json", rank = 2)]
+pub fn create_user_jwt_failure() -> Result<JsonValue, ApiError> {
+    Err(ApiError::Unauthorized)
 }
 
 #[derive(Deserialize, Serialize)]

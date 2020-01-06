@@ -69,7 +69,7 @@ fn files(file: PathBuf) -> Option<NamedFile> {
 fn main() {
     let matches = clap_app!(cert_registry_rest_api =>
     (version: crate_version!())
-    (about: "Cert Registry REST API")
+    (about: "ConsenSource REST API")
     (@arg verbose: -v --verbose +multiple
      "increase output verbosity")
     (@arg connect: default_value("tcp://localhost:4004") -C --connect +takes_value
@@ -171,6 +171,7 @@ fn main() {
                 agents::list_agents,
                 agents::list_agents_with_params,
                 authorization::create_user,
+                authorization::create_user_jwt_failure,
                 authorization::update_user,
                 authorization::authenticate,
                 blockchain::submit_batches,

@@ -20,7 +20,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for JWT {
             let token = auth[0].get(7..).expect("Auth header not in correct format");
             let jwks = get_jwks(&oauth_url).expect("Failed to fetch keys");
             let validations = vec![
-                alcoholic_jwt::Validation::Issuer(oauth_url.into()),
+                alcoholic_jwt::Validation::Issuer(oauth_url),
                 alcoholic_jwt::Validation::NotExpired,
             ];
             let kid = alcoholic_jwt::token_kid(&token)
