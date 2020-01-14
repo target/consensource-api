@@ -11,12 +11,8 @@ use jwt;
 
 #[derive(Serialize, Deserialize)]
 pub struct UserCreate {
-    /// The users's public key for their on-chain identity
+    /// The users's public key for their off-chain identity
     pub public_key: String,
-    /// The batch used to create this user's on-chain identity
-    pub batch_id: String,
-    /// The transaction used to create this user's on-chain identity
-    pub transaction_id: String,
     /// A base64-encoded encrypted string of the private key
     pub encrypted_private_key: String,
     /// A site-specific username
@@ -39,8 +35,6 @@ pub fn create_user(
     } else {
         let user = User {
             public_key: user_create.public_key,
-            transaction_id: user_create.transaction_id,
-            batch_id: user_create.batch_id,
             encrypted_private_key: user_create.encrypted_private_key,
             username: user_create.username,
             hashed_password: hash_password(&user_create.password)?,

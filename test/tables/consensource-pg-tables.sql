@@ -140,8 +140,6 @@ CREATE INDEX IF NOT EXISTS standard_versions_block_index ON standard_versions (e
 
 CREATE TABLE IF NOT EXISTS users (
   public_key                 VARCHAR     PRIMARY KEY,
-  transaction_id             VARCHAR     NOT NULL,
-  batch_id                   VARCHAR     NOT NULL,
   encrypted_private_key      VARCHAR     NOT NULL,
   username                   VARCHAR     NOT NULL  UNIQUE,
   hashed_password            VARCHAR     NOT NULL
