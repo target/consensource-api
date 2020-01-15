@@ -31,8 +31,6 @@ mod tests {
     static UNHASHED_PASSWORD: &str = "unhashed_password";
 
     fn create_test_server() -> Client {
-        // TODO: Does `localhost:5432` work in both docker-compomse & local testing?
-        //       Or does it need to be conditional?
         let connection_pool = init_pool(get_db_connection_str());
 
         let rocket = rocket::ignite()
@@ -163,8 +161,6 @@ mod tests {
     fn get_test_user() -> User {
         User {
             public_key: "public_key".to_owned(),
-            batch_id: "batch_id".to_owned(),
-            transaction_id: "transaction_id".to_owned(),
             encrypted_private_key: "encrypted_private_key".to_owned(),
             username: "username".to_owned(),
             hashed_password: authorization::hash_password(UNHASHED_PASSWORD).unwrap(),
@@ -231,8 +227,6 @@ mod tests {
             let user = get_test_user();
             let user_create = authorization::UserCreate {
                 public_key: user.public_key,
-                transaction_id: user.transaction_id,
-                batch_id: user.batch_id,
                 encrypted_private_key: user.encrypted_private_key,
                 username: user.username,
                 password: user.hashed_password,
@@ -282,8 +276,6 @@ mod tests {
 
             let user_create = authorization::UserCreate {
                 public_key: user.public_key,
-                transaction_id: user.transaction_id,
-                batch_id: user.batch_id,
                 encrypted_private_key: user.encrypted_private_key,
                 username: user.username,
                 password: user.hashed_password,
