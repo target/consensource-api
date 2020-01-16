@@ -53,13 +53,33 @@ cargo +nightly fmt -- --check
 
 ### Test 
 
-Most of the Rest API tests are integration tests. To startup a Postgres and Rest API instance 
-and run these tests with code coverage metrics:
+Most of the Rest API tests are integration tests. To start up a Postgres and Rest API instance and run these tests with code coverage metrics:
 
 ```
-cd test
-docker-compose up
+cd test/
+docker-compose -f docker-compose.tarpaulin.yaml up
 ```
+
+#### Writing integration tests
+
+While writing intergration tests, you will need a Postgres instance to issue commands against.
+This can be done with the following command:
+
+```
+cd test/
+docker-compose -f docker-compose.dev.yaml up
+```
+
+Then, to run your tests you will need to exec into `test-rest-api` container:
+
+```
+docker exec -it test-rest-api /bin/bash
+cd /api
+```
+
+From there you can run `cargo test -- --nocapture --test-threads=1` to run all tests. It is important to include the `--test-threads=1` to prevent the tests from running in parallel, due to database race conditions.
+
+As you update your code, the shared volume mounted to `/api` will allow you to run tests in the container with your most up-to-date code.
 
 ### Build 
 ``` 
@@ -68,9 +88,9 @@ cargo build
 
 ### Run
 
-You'll need to run ConsenSource from the [compose
-repo](https://github.com/target/consensource-compose). The compose repo is a git
-submodules repo that  references all the components that make up ConsenSource.
+You'll need to run ConsenSource from the [consensource-compose
+repo](https://github.com/target/consensource-compose), a git submodules repo that 
+references all the components that make up ConsenSource.
 
 _NOTE: The consensource-compose repo is only for pulling changes and running the
-project as a whole, it is not for development._
+project as a whole, it is not for development_

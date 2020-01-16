@@ -1,0 +1,59 @@
+##########################################################
+# This compose file is for running tests without tarpaulin
+#########################################################
+
+version: "3.3"
+
+services:
+  test-postgres:
+    image: postgres:alpine
+    container_name: test-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: consensource
+      POSTGRES_PASSWORD: consensource
+      POSTGRES_DB: consensource
+    volumes:
+      - "./tables:/docker-entrypoint-initdb.d"
+    expose:
+      - 5432
+  
+  test-rest-api:
+    # We don't use any tarpaulin packages from this image, but we
+    # do need some packages like `netcat` that are included
+    image: target/consensource-api:tarpaulin 
+    container_name: test-rest-api
+    build:
+      context: ../
+    volumes:
+      - ./../:/api
+    expose:
+      - 9009
+      - 9010
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - test-postgres
+    environment:
+      ROCKET_ADDRESS: "0.0.0.0"
+      ROCKET_PORT: "9009"
+      PG_USERNAME: "consensource"
+      PG_PASSWORD: "consensource"
+      PG_HOST: "test-postgres"
+      PG_PORT: "5432"
+      PG_DB_NAME: "consensource"
+    command: |
+      bash -c "
+        RETRIES=5
+        DB_PORT=5432
+
+        # Wait until Postgres is up to start the server
+        until netcat -q 1 test-postgres $$DB_PORT </dev/null || [ $$RETRIES -eq 0 ]; do
+          echo Waiting for Postgres server, $$((RETRIES--)) remaining attempts...
+          sleep 1
+        done
+
+        # Keep container from exiting while running tests
+        tail -f /dev/null
+      "

@@ -67,7 +67,7 @@ fn files(file: PathBuf) -> Option<NamedFile> {
 
 #[cfg_attr(tarpaulin, skip)]
 fn main() {
-    let matches = clap_app!(cert_registry_rest_api =>
+    let matches = clap_app!(consensource_api =>
     (version: crate_version!())
     (about: "ConsenSource REST API")
     (@arg verbose: -v --verbose +multiple

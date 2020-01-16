@@ -50,11 +50,12 @@ mod tests {
                     agents::fetch_agent_with_head_param,
                     agents::list_agents,
                     agents::list_agents_with_params,
-                    authorization::create_user,  // TODO
-                    authorization::update_user,  // TODO
-                    authorization::authenticate, // TODO
-                    blockchain::submit_batches,  // TODO
-                    blockchain::list_statuses,   // TODO
+                    authorization::create_user,
+                    authorization::update_user,
+                    authorization::authenticate,
+                    authorization::create_user_jwt_failure,
+                    blockchain::submit_batches,
+                    blockchain::list_statuses,
                     blocks::fetch_block,
                     blocks::fetch_block_with_head_param,
                     blocks::list_blocks,
@@ -89,11 +90,11 @@ mod tests {
     fn get_db_connection_str() -> String {
         format!(
             "postgres://{}:{}@{}:{}/{}",
-            env::var("PG_USERNAME").unwrap_or("cert-registry".to_string()),
-            env::var("PG_PASSWORD").unwrap_or("cert-registry".to_string()),
+            env::var("PG_USERNAME").unwrap_or("consensource".to_string()),
+            env::var("PG_PASSWORD").unwrap_or("consensource".to_string()),
             env::var("PG_HOST").unwrap_or("localhost".to_string()),
             env::var("PG_PORT").unwrap_or("5432".to_string()),
-            env::var("PG_DB_NAME").unwrap_or("cert-registry".to_string())
+            env::var("PG_DB_NAME").unwrap_or("consensource".to_string())
         )
     }
 
@@ -116,13 +117,27 @@ mod tests {
     }
 
     ///
+    /// Clear user defined env vars that may have been set during the tests
+    ///
+    fn clear_env_vars() {
+        let env_vars = vec!["OAUTH_VALIDATION_URL".to_string()];
+
+        for env_var in env_vars {
+            env::remove_var(env_var)
+        }
+    }
+
+    ///
     /// Clear tables that are populated as part of the `setup()` method
+    /// Clear used defined env vars that may have been set during the tests
     ///
     fn teardown() {
         let test_pool = init_pool(get_db_connection_str());
         let conn = &test_pool.get().unwrap();
 
         diesel::delete(blocks_schema::table).execute(conn).unwrap();
+
+        clear_env_vars();
     }
 
     ///
@@ -139,6 +154,9 @@ mod tests {
         assert!(result.is_ok())
     }
 
+    ///
+    /// Clear the `users` db table
+    ///
     fn clear_users_table() {
         let test_pool = init_pool(get_db_connection_str());
         let conn = &test_pool.get().unwrap();
@@ -146,6 +164,9 @@ mod tests {
         diesel::delete(users::table).execute(conn).unwrap();
     }
 
+    ///
+    /// Insert a given `User` into the db
+    ///
     fn populate_users_table(user: User) {
         clear_users_table();
 
@@ -158,6 +179,9 @@ mod tests {
             .unwrap();
     }
 
+    ///
+    /// Create a `User` object with dummy data
+    ///
     fn get_test_user() -> User {
         User {
             public_key: "public_key".to_owned(),
@@ -167,9 +191,21 @@ mod tests {
         }
     }
 
+    fn get_user_create_payload() -> String {
+        let user = get_test_user();
+        let user_create = authorization::UserCreate {
+            public_key: user.public_key,
+            encrypted_private_key: user.encrypted_private_key,
+            username: user.username,
+            password: user.hashed_password,
+        };
+
+        json!(user_create).to_string()
+    }
+
     #[test]
     /// Test that a GET to `/api/users` returns an `Ok` response
-    fn test_cors_users_endpoint() {
+    fn test_users_endpoint() {
         run_test(|client| {
             let response = client.options("/api/users").dispatch();
             assert_eq!(response.status(), Status::Ok);
@@ -177,8 +213,23 @@ mod tests {
     }
 
     #[test]
+    /// Test that a POST to `/api/users` returns an `Unauthorized` response
+    /// when there is no `Authorization` header in the request
+    fn test_users_endpoint_unauthorized_without_auth_header() {
+        run_test(|client| {
+            env::set_var("OAUTH_VALIDATION_URL", "bad-url");
+            let response = client
+                .post("/api/users")
+                .header(ContentType::JSON)
+                .body(&get_user_create_payload())
+                .dispatch();
+            assert_eq!(response.status(), Status::Unauthorized);
+        })
+    }
+
+    #[test]
     /// Test that a GET to `/api/users/authenticate` returns an `Ok` response
-    fn test_cors_auth_endpoint() {
+    fn test_auth_endpoint() {
         run_test(|client| {
             let response = client.options("/api/users/authenticate").dispatch();
             assert_eq!(response.status(), Status::Ok);
@@ -187,7 +238,7 @@ mod tests {
 
     #[test]
     /// /// Test that a GET to `/api/batches` returns an `Ok` response
-    fn test_cors_batches_endpoint() {
+    fn test_batches_endpoint() {
         run_test(|client| {
             let response = client.options("/api/batches").dispatch();
             assert_eq!(response.status(), Status::Ok);
@@ -195,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    /// Test that a GET to `/api/users` returns an `Ok` response and sends back an
+    /// Test that a GET to `/api/agents` returns an `Ok` response and sends back an
     /// empty array when the DB is empty
     fn test_empty_agents_list_endpoint() {
         run_test(|client| {
@@ -223,20 +274,10 @@ mod tests {
     fn test_user_create_endpoint() {
         run_test(|client| {
             clear_users_table();
-
-            let user = get_test_user();
-            let user_create = authorization::UserCreate {
-                public_key: user.public_key,
-                encrypted_private_key: user.encrypted_private_key,
-                username: user.username,
-                password: user.hashed_password,
-            };
-
-            let payload = json!(user_create).to_string();
             let mut response = client
                 .post("/api/users")
                 .header(ContentType::JSON)
-                .body(&payload)
+                .body(&get_user_create_payload())
                 .dispatch();
             assert_eq!(response.status(), Status::Ok);
 
@@ -270,25 +311,15 @@ mod tests {
     /// already been taken returns a `BadRequest` response
     fn test_user_create_fails_duplicate_users() {
         run_test(|client| {
+            clear_users_table();
             let user = get_test_user();
-
             populate_users_table(user.clone());
-
-            let user_create = authorization::UserCreate {
-                public_key: user.public_key,
-                encrypted_private_key: user.encrypted_private_key,
-                username: user.username,
-                password: user.hashed_password,
-            };
-
-            let payload = json!(user_create).to_string();
-
-            let response2 = client
+            let response = client
                 .post("/api/users")
                 .header(ContentType::JSON)
-                .body(&payload)
+                .body(&get_user_create_payload())
                 .dispatch();
-            assert_eq!(response2.status(), Status::BadRequest);
+            assert_eq!(response.status(), Status::BadRequest);
         })
     }
 
