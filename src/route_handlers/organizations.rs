@@ -12,6 +12,7 @@ use rocket::http::uri::Uri;
 use rocket::request::Form;
 use rocket_contrib::json::JsonValue;
 use route_handlers::certificates::ApiCertificate;
+use route_handlers::prom::increment_http_req;
 use std::collections::HashMap;
 
 #[derive(Serialize)]
@@ -251,6 +252,9 @@ pub fn fetch_organization_with_params(
     head_param: Option<Form<OrganizationParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let head_param = match head_param {
         Some(param) => param.into_inner(),
         None => Default::default(),
@@ -345,6 +349,9 @@ pub fn list_organizations_with_params(
     params: Option<Form<OrganizationParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let params = match params {
         Some(param) => param.into_inner(),
         None => Default::default(),

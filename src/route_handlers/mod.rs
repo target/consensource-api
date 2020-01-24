@@ -7,6 +7,7 @@ pub mod cors;
 pub mod factories;
 pub mod health;
 pub mod organizations;
+pub mod prom;
 pub mod requests;
 pub mod standards;
 pub mod standards_body;

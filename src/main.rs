@@ -32,6 +32,7 @@ extern crate log4rs;
 #[macro_use]
 extern crate lazy_static;
 extern crate hyper_sse;
+extern crate prometheus;
 
 mod database;
 mod errors;
@@ -49,7 +50,7 @@ use log4rs::encode::pattern::PatternEncoder;
 use rocket::response::NamedFile;
 use route_handlers::{
     agents, authorization, blockchain, blocks, certificates, cors, factories, health,
-    organizations, requests, standards, standards_body,
+    organizations, prom, requests, standards, standards_body,
 };
 use std::path::{Path, PathBuf};
 use std::{env, io, process};
@@ -199,7 +200,8 @@ fn main() {
                 certificates::list_certificates_with_params,
                 standards::list_standards,
                 standards::list_standards_with_params,
-                standards_body::list_standards_belonging_to_org
+                standards_body::list_standards_belonging_to_org,
+                prom::get_metrics,
             ],
         )
         .mount("/", routes![index, files])
