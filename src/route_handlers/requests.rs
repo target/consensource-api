@@ -15,6 +15,7 @@ use rocket_contrib::json::JsonValue;
 use std::collections::HashMap;
 
 use route_handlers::organizations::ApiFactory;
+use route_handlers::prom::increment_http_req;
 use route_handlers::standards::ApiStandard;
 
 #[get("/requests/<request_id>")]
@@ -28,6 +29,9 @@ pub fn fetch_request_with_head_param(
     head_param: Option<Form<CertRequestParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let head_param = match head_param {
         Some(param) => param.into_inner(),
         None => Default::default(),
@@ -183,6 +187,9 @@ fn query_requests(
     params: Option<Form<CertRequestParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let params = match params {
         Some(param) => param.into_inner(),
         None => Default::default(),

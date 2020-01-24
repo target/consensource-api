@@ -7,6 +7,7 @@ use hyper_sse::Server;
 use paging::*;
 use rocket::request::Form;
 use rocket_contrib::json::JsonValue;
+use route_handlers::prom::increment_http_req;
 use std::{thread, time};
 
 const DEFAULT_CHANNEL: u8 = 0;
@@ -144,6 +145,9 @@ pub fn fetch_block_with_head_param(
     head_param: Option<Form<BlockParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let head_param = match head_param {
         Some(param) => param.into_inner(),
         None => Default::default(),
@@ -188,6 +192,9 @@ pub fn list_blocks_with_params(
     params: Option<Form<BlockParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let params = match params {
         Some(param) => param.into_inner(),
         None => Default::default(),

@@ -6,6 +6,7 @@ use errors::ApiError;
 use paging::get_head_block_num;
 use rocket::request::Form;
 use rocket_contrib::json::JsonValue;
+use route_handlers::prom::increment_http_req;
 use std::collections::HashMap;
 
 #[derive(Default, FromForm, Clone)]
@@ -80,6 +81,9 @@ pub fn list_standards_with_params(
     params: Option<Form<StandardParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let params = match params {
         Some(param) => param.into_inner(),
         None => Default::default(),

@@ -1,5 +1,6 @@
 use bcrypt::{hash, verify, BcryptError};
 use rocket_contrib::json::{Json, JsonValue};
+use route_handlers::prom::increment_http_req;
 
 use database::DbConn;
 use database_manager::models::User;
@@ -27,6 +28,9 @@ pub fn create_user(
     _claims: jwt::JWT,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let user_create = payload.0;
     if find_user_by_username(&conn, &user_create.username)?.is_some() {
         Err(ApiError::BadRequest(
@@ -73,6 +77,9 @@ pub fn update_user(
     public_key: String,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let user_update = payload.0;
     let updated_auth = UserUpdate {
         username: user_update.username,
@@ -101,6 +108,9 @@ pub struct UserAuthenticate {
 
 #[post("/users/authenticate", format = "application/json", data = "<payload>")]
 pub fn authenticate(payload: Json<UserAuthenticate>, conn: DbConn) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let user_auth = payload.0;
     if let Some(user) = find_user_by_username(&conn, &user_auth.username)? {
         if verify(&user_auth.password, &user.hashed_password)? {

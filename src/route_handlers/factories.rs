@@ -15,6 +15,7 @@ use rocket::http::uri::Uri;
 use rocket::request::Form;
 use rocket_contrib::json::JsonValue;
 use route_handlers::organizations::ApiFactory;
+use route_handlers::prom::increment_http_req;
 
 #[derive(Default, FromForm, Clone)]
 pub struct FactoryParams {
@@ -36,6 +37,9 @@ pub fn fetch_factory_with_head_param(
     params: Option<Form<FactoryParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let params = match params {
         Some(param) => param.into_inner(),
         None => Default::default(),

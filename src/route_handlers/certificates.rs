@@ -6,6 +6,7 @@ use errors::ApiError;
 use paging::*;
 use rocket::request::Form;
 use rocket_contrib::json::JsonValue;
+use route_handlers::prom::increment_http_req;
 
 #[derive(Serialize)]
 pub struct ApiCertificate {
@@ -56,6 +57,9 @@ pub fn fetch_certificate_with_head_param(
     head_param: Option<Form<CertificateParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let head_param = match head_param {
         Some(param) => param.into_inner(),
         None => Default::default(),
@@ -135,6 +139,9 @@ pub fn list_certificates_with_params(
     params: Option<Form<CertificateParams>>,
     conn: DbConn,
 ) -> Result<JsonValue, ApiError> {
+    // Increment HTTP request count for Prometheus metrics
+    increment_http_req();
+
     let params = match params {
         Some(param) => param.into_inner(),
         None => Default::default(),
