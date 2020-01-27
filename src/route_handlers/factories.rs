@@ -85,7 +85,7 @@ pub fn fetch_factory_with_head_param(
             Ok(json!({
                 "data": match params.expand {
                     Some(_) => {
-                        let certificate_results = query_certifications(conn, head_block_num, &[organization_id.to_string()])?;
+                        let certificate_results = query_certifications(conn, head_block_num, &[organization_id])?;
 
                         ApiFactory::with_certificate_expanded(
                             factory,
@@ -155,7 +155,7 @@ fn query_factories(
 
     if let Some(name) = params.name {
         factories_query = factories_query.filter(organizations::name.eq(name.to_string()));
-        count_query = count_query.filter(organizations::name.eq(name.to_string()));
+        count_query = count_query.filter(organizations::name.eq(name));
     }
 
     let total_count = count_query
@@ -324,10 +324,5 @@ fn apply_paging(params: FactoryParams, head: i64, total_count: i64) -> Result<Js
         link = format!("{}expand={}&", link, expand);
     }
 
-    get_response_paging_info(
-        params.limit,
-        params.offset,
-        link.to_string().clone(),
-        total_count,
-    )
+    get_response_paging_info(params.limit, params.offset, link, total_count)
 }

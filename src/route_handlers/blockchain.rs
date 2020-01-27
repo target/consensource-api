@@ -78,7 +78,7 @@ pub fn submit_batches(data: Data, validator_url: State<String>) -> Result<JsonVa
         Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST,
         &batch_submit_request,
     )
-    .map_err(|err| ApiError::InternalError(err.to_string()))?;
+    .map_err(ApiError::InternalError)?;
 
     match response.status {
         ClientBatchSubmitResponse_Status::OK => {
@@ -127,7 +127,7 @@ pub fn list_statuses(
         Message_MessageType::CLIENT_BATCH_STATUS_REQUEST,
         &batch_status_request,
     )
-    .map_err(|err| ApiError::InternalError(err.to_string()))?;
+    .map_err(ApiError::InternalError)?;
 
     match response.status {
         ClientBatchStatusResponse_Status::OK => {
