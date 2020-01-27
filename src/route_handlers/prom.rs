@@ -17,7 +17,7 @@ pub fn get_metrics() -> String {
     let encoder = TextEncoder::new();
     encoder.encode(&metric_families, &mut buffer).unwrap();
 
-    format!("{}", String::from_utf8(buffer).unwrap()).to_string()
+    String::from_utf8(buffer).unwrap()
 }
 
 pub fn increment_http_req() {

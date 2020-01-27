@@ -95,8 +95,7 @@ pub fn list_standards_with_params(
         .into_boxed();
 
     if let Some(organization_id) = params.organization_id {
-        standards_query =
-            standards_query.filter(standards::organization_id.eq(organization_id.to_string()));
+        standards_query = standards_query.filter(standards::organization_id.eq(organization_id));
     }
 
     let standards = standards_query

@@ -212,7 +212,7 @@ fn query_requests(
 
     if let Some(factory_id) = params.factory_id {
         requests_query = requests_query.filter(requests::factory_id.eq(factory_id.to_string()));
-        count_query = count_query.filter(requests::factory_id.eq(factory_id.to_string()));
+        count_query = count_query.filter(requests::factory_id.eq(factory_id));
     }
 
     let total_count = count_query
@@ -399,10 +399,5 @@ fn apply_paging(
     }
     link = format!("{}head={}&", link, head);
 
-    get_response_paging_info(
-        params.limit,
-        params.offset,
-        link.to_string().clone(),
-        total_count,
-    )
+    get_response_paging_info(params.limit, params.offset, link, total_count)
 }

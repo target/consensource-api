@@ -103,7 +103,7 @@ pub struct WatcherThread {
 impl WatcherThread {
     pub fn run(block_watcher: BlockWatcher, interval: u64, host: &str, port: u16) -> Self {
         let interval = time::Duration::from_millis(interval);
-        let mut watcher = block_watcher.clone();
+        let mut watcher = block_watcher;
         thread::spawn(move || loop {
             if let Some(block) = watcher.take() {
                 debug!("Sending {:?}", block);
@@ -230,10 +230,5 @@ pub fn list_blocks_with_params(
 fn apply_paging(params: BlockParams, head: i64, total_count: i64) -> Result<JsonValue, ApiError> {
     let link = format!("/api/blocks?head={}&", head);
 
-    get_response_paging_info(
-        params.limit,
-        params.offset,
-        link.to_string().clone(),
-        total_count,
-    )
+    get_response_paging_info(params.limit, params.offset, link, total_count)
 }
