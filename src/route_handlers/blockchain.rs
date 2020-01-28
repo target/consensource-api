@@ -1,4 +1,6 @@
+use database::DbConn;
 use errors::ApiError;
+use logging;
 use protobuf;
 use protobuf::ProtobufEnum;
 use rocket::request::Form;
@@ -57,7 +59,11 @@ impl Serialize for BatchStatusWrapper {
 }
 
 #[post("/batches", format = "application/octet-stream", data = "<data>")]
-pub fn submit_batches(data: Data, validator_url: State<String>) -> Result<JsonValue, ApiError> {
+pub fn submit_batches(
+    data: Data,
+    validator_url: State<String>,
+    conn: DbConn, //only needed for logging
+) -> Result<JsonValue, ApiError> {
     // Increment HTTP request count for Prometheus metrics
     increment_http_req();
 
@@ -68,7 +74,10 @@ pub fn submit_batches(data: Data, validator_url: State<String>) -> Result<JsonVa
     let batch_ids: Vec<String> = batch_list
         .batches
         .iter()
-        .map(|ref batch| batch.header_signature.clone())
+        .map(|ref batch| {
+            logging::log_batch(&conn, &(*batch).clone());
+            batch.header_signature.clone()
+        })
         .collect();
 
     let mut batch_submit_request = ClientBatchSubmitRequest::new();
@@ -78,7 +87,7 @@ pub fn submit_batches(data: Data, validator_url: State<String>) -> Result<JsonVa
         Message_MessageType::CLIENT_BATCH_SUBMIT_REQUEST,
         &batch_submit_request,
     )
-    .map_err(|err| ApiError::InternalError(err.to_string()))?;
+    .map_err(ApiError::InternalError)?;
 
     match response.status {
         ClientBatchSubmitResponse_Status::OK => {
@@ -127,7 +136,7 @@ pub fn list_statuses(
         Message_MessageType::CLIENT_BATCH_STATUS_REQUEST,
         &batch_status_request,
     )
-    .map_err(|err| ApiError::InternalError(err.to_string()))?;
+    .map_err(ApiError::InternalError)?;
 
     match response.status {
         ClientBatchStatusResponse_Status::OK => {

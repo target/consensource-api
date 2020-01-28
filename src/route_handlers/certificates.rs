@@ -174,14 +174,13 @@ pub fn list_certificates_with_params(
     if let Some(certifying_body_id) = params.certifying_body_id {
         certificate_query = certificate_query
             .filter(certificates::certifying_body_id.eq(certifying_body_id.to_string()));
-        count_query =
-            count_query.filter(certificates::certifying_body_id.eq(certifying_body_id.to_string()));
+        count_query = count_query.filter(certificates::certifying_body_id.eq(certifying_body_id));
     }
 
     if let Some(factory_id) = params.factory_id {
         certificate_query =
             certificate_query.filter(certificates::factory_id.eq(factory_id.to_string()));
-        count_query = count_query.filter(certificates::factory_id.eq(factory_id.to_string()));
+        count_query = count_query.filter(certificates::factory_id.eq(factory_id));
     }
 
     let total_count = count_query
@@ -253,10 +252,5 @@ fn apply_paging(
     }
     link = format!("{}head={}&", link, head);
 
-    get_response_paging_info(
-        params.limit,
-        params.offset,
-        link.to_string().clone(),
-        total_count,
-    )
+    get_response_paging_info(params.limit, params.offset, link, total_count)
 }

@@ -292,7 +292,7 @@ pub fn fetch_organization_with_params(
             let data = match org.organization_type {
                 OrganizationTypeEnum::Factory => {
                     let address_results = addresses::table
-                        .filter(addresses::organization_id.eq(organization_id.to_string()))
+                        .filter(addresses::organization_id.eq(organization_id))
                         .filter(addresses::start_block_num.le(head_block_num))
                         .filter(addresses::end_block_num.gt(head_block_num))
                         .first::<Address>(&*conn)
@@ -372,7 +372,7 @@ pub fn list_organizations_with_params(
 
     if let Some(name) = params.name {
         organizations_query = organizations_query.filter(organizations::name.eq(name.to_string()));
-        count_query = count_query.filter(organizations::name.eq(name.to_string()));
+        count_query = count_query.filter(organizations::name.eq(name));
     }
     if let Some(organization_type) = params.organization_type {
         let org_type = match organization_type {
@@ -382,7 +382,7 @@ pub fn list_organizations_with_params(
 
         organizations_query =
             organizations_query.filter(organizations::organization_type.eq(org_type.clone()));
-        count_query = count_query.filter(organizations::organization_type.eq(org_type.clone()));
+        count_query = count_query.filter(organizations::organization_type.eq(org_type));
     }
 
     let total_count = count_query
@@ -509,10 +509,5 @@ fn apply_paging(
     }
     link = format!("{}head={}&", link, head);
 
-    get_response_paging_info(
-        params.limit,
-        params.offset,
-        link.to_string().clone(),
-        total_count,
-    )
+    get_response_paging_info(params.limit, params.offset, link, total_count)
 }

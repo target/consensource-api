@@ -98,10 +98,5 @@ fn apply_paging(
         link, params.organization_id, head
     );
 
-    get_response_paging_info(
-        params.limit,
-        params.offset,
-        link.to_string().clone(),
-        total_count,
-    )
+    get_response_paging_info(params.limit, params.offset, link, total_count)
 }
