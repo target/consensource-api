@@ -1,6 +1,7 @@
 ##########################################################
 # This compose file is for running tests with tarpaulin
 #########################################################
+
 version: "3.3"
 
 services:
@@ -9,9 +10,9 @@ services:
     container_name: test-postgres
     restart: always
     environment:
-      POSTGRES_USER: cert-registry
-      POSTGRES_PASSWORD: cert-registry
-      POSTGRES_DB: cert-registry
+      POSTGRES_USER: consensource
+      POSTGRES_PASSWORD: consensource
+      POSTGRES_DB: consensource
     volumes:
       - "./tables:/docker-entrypoint-initdb.d"
     expose:
@@ -39,12 +40,11 @@ services:
     environment:
       ROCKET_ADDRESS: "0.0.0.0"
       ROCKET_PORT: "9009"
-      PG_USERNAME: "cert-registry"
-      PG_PASSWORD: "cert-registry"
+      PG_USERNAME: "consensource"
+      PG_PASSWORD: "consensource"
       PG_HOST: "test-postgres"
       PG_PORT: "5432"
-      PG_DB_NAME: "cert-registry"
-      # OAUTH_VALIDATION_URL: "https://some-identity-provider.tld"
+      PG_DB_NAME: "consensource"
     command: |
       bash -c "
         RETRIES=5
@@ -65,8 +65,8 @@ services:
 
           # Send to coveralls using repo token
           # This method works with sending coverage data from a container on a travis-ci VM
-          cargo tarpaulin --coveralls $COVERALLS_TOKEN --report-uri https://coveralls.io/api/v1/jobs -- --nocapture --test-threads=1
+          cargo tarpaulin --ignore-tests --coveralls $COVERALLS_TOKEN --report-uri https://coveralls.io/api/v1/jobs -- --nocapture --test-threads=1
         else
-          cargo tarpaulin -- --nocapture --test-threads=1
+          cargo tarpaulin --ignore-tests -- --nocapture --test-threads=1
         fi;
       "
