@@ -6,6 +6,8 @@
 
 #[macro_use]
 extern crate clap;
+extern crate chrono;
+extern crate common;
 extern crate database as database_manager;
 extern crate diesel;
 #[macro_use]
@@ -38,6 +40,7 @@ mod database;
 mod errors;
 mod fairings;
 mod jwt;
+mod logging;
 mod paging;
 mod route_handlers;
 

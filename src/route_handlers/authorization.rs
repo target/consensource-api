@@ -140,7 +140,7 @@ fn find_user_by_username(conn: &DbConn, username: &str) -> Result<Option<User>, 
         .map_err(|e| ApiError::InternalError(format!("Unable to access database: {}", e)))
 }
 /// Find a User by private key
-fn find_user_by_pub_key(conn: &DbConn, public_key: &str) -> Result<Option<User>, ApiError> {
+pub fn find_user_by_pub_key(conn: &DbConn, public_key: &str) -> Result<Option<User>, ApiError> {
     users::table
         .filter(users::public_key.eq(public_key))
         .first::<User>(&**conn)
