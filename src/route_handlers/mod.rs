@@ -80,7 +80,8 @@ mod tests {
                     certificates::list_certificates_with_params,
                     standards::list_standards,
                     standards::list_standards_with_params,
-                    standards_body::list_standards_belonging_to_org
+                    standards_body::list_standards_belonging_to_org,
+                    prom::get_metrics,
                 ],
             )
             .attach(CORS());
@@ -624,6 +625,15 @@ mod tests {
             let body: Value =
                 serde_json::from_str(&response.body().unwrap().into_string().unwrap()).unwrap();
             assert_eq!(body["data"].as_array().unwrap().len(), 0);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/prom_metrics` returns an `Ok` response
+    fn test_prom_metrics_endpoint() {
+        run_test(|client| {
+            let response = client.get("/api/prom_metrics").dispatch();
+            assert_eq!(response.status(), Status::Ok);
         })
     }
 }
