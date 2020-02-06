@@ -68,12 +68,12 @@ fn get_action_from_transaction(transaction: &Transaction) -> String {
 pub fn log_batch(conn: &DbConn, batch: &Batch) {
     let now: DateTime<Utc> = Utc::now();
     let key = get_public_key_from_batch(batch.clone()).unwrap();
-    let user = find_user_by_pub_key(&conn, &key).unwrap().unwrap();
+    let username = match find_user_by_pub_key(&conn, &key).unwrap() {
+        Some(user) => user.username,
+        None => "User not found".to_string(),
+    };
     let actions = get_actions_from_batch(batch);
-    info!(
-        "{} | User: {:?} | Actions: {:?}",
-        now, user.username, actions
-    )
+    info!("{} | User: {} | Actions: {:?}", now, username, actions)
 }
 
 #[cfg(test)]
