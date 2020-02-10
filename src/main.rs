@@ -34,6 +34,7 @@ extern crate log4rs;
 #[macro_use]
 extern crate lazy_static;
 extern crate hyper_sse;
+#[macro_use]
 extern crate prometheus;
 
 mod database;

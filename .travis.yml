@@ -1,15 +1,14 @@
 language: rust
 rust:
-  - nightly
+  - nightly-2020-02-07
 services:
   - docker
 
-env:
-  COMPOSE_VERSION="1.24.1"
+env: COMPOSE_VERSION="1.24.1"
 
 # Install latest nightly of rust toolchain & linter (rustfmt)
 before_install:
-  - rustup component add rustfmt --toolchain nightly
+  - rustup component add rustfmt --toolchain $TRAVIS_RUST_VERSION
 
 # Install docker-compose
 install:
@@ -29,4 +28,3 @@ script:
   - cargo fmt -- --check || travis_terminate 1; # Run lint, stop build if error
   - export SEND_REPORT=1 # Set env var to publish tarpaulin report
   - docker-compose -f test/docker-compose.tarpaulin.yaml up --exit-code-from test-rest-api # Run tests
-    
