@@ -3,6 +3,7 @@ use common::proto::payload;
 use database::DbConn;
 use protobuf::ProtobufError;
 use route_handlers::authorization::find_user_by_pub_key;
+use route_handlers::prom::increment_action;
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
 use sawtooth_sdk::messages::transaction::Transaction;
 
@@ -73,7 +74,11 @@ pub fn log_batch(conn: &DbConn, batch: &Batch) {
         None => "User not found".to_string(),
     };
     let actions = get_actions_from_batch(batch);
-    info!("{} | User: {} | Actions: {:?}", now, username, actions)
+    // Emit prometheus metric for each action
+    for action in &actions {
+        increment_action(&action, &username);
+    }
+    info!("{} | User: {} | Actions: {:?}", now, &username, &actions)
 }
 
 #[cfg(test)]
