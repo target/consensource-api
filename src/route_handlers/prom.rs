@@ -14,6 +14,12 @@ lazy_static! {
         &["actions", "users"]
     )
     .unwrap();
+    static ref SIGNIN_COUNTER_VEC: IntCounterVec = register_int_counter_vec!(
+        "consensource_signins",
+        "Number of times each user has signed in",
+        &["user"]
+    )
+    .unwrap();
 }
 
 #[get("/prom_metrics")]
@@ -36,6 +42,10 @@ pub fn increment_action(action: &str, username: &str) {
         .inc();
 }
 
+pub fn increment_signin(username: &str) {
+    SIGNIN_COUNTER_VEC.with_label_values(&[&username]).inc();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -53,5 +63,12 @@ mod tests {
         assert!(get_metrics().contains("consensource_api_actions"));
         assert!(get_metrics().contains("create agent"));
         assert!(get_metrics().contains("test"));
+    }
+
+    #[test]
+    fn test_get_metrics_signin() {
+        increment_signin("testuser");
+        assert!(get_metrics().contains("consensource_signins"));
+        assert!(get_metrics().contains("testuser"));
     }
 }

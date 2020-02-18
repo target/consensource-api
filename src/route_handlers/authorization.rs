@@ -1,6 +1,6 @@
 use bcrypt::{hash, verify, BcryptError};
 use rocket_contrib::json::{Json, JsonValue};
-use route_handlers::prom::increment_http_req;
+use route_handlers::prom::{increment_http_req, increment_signin};
 
 use database::DbConn;
 use database_manager::models::User;
@@ -114,6 +114,7 @@ pub fn authenticate(payload: Json<UserAuthenticate>, conn: DbConn) -> Result<Jso
     let user_auth = payload.0;
     if let Some(user) = find_user_by_username(&conn, &user_auth.username)? {
         if verify(&user_auth.password, &user.hashed_password)? {
+            increment_signin(&user.username);
             return Ok(json!({
                 "status": "ok",
                 "username": user.username,
