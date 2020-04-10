@@ -14,6 +14,8 @@ extern crate diesel;
 extern crate rocket;
 #[macro_use]
 extern crate rocket_contrib;
+#[macro_use]
+extern crate rocket_okapi;
 extern crate protobuf;
 extern crate sawtooth_sdk;
 extern crate serde;
@@ -25,6 +27,7 @@ extern crate futures;
 extern crate http;
 extern crate hyper;
 extern crate hyper_tls;
+extern crate schemars;
 extern crate serde_json;
 extern crate tokio_core;
 extern crate uuid;
@@ -52,6 +55,7 @@ use log4rs::append::console::ConsoleAppender;
 use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use rocket::response::NamedFile;
+use rocket_okapi::swagger_ui::*;
 use route_handlers::{
     agents, authorization, blockchain, blocks, certificates, cors, factories, health,
     organizations, prom, requests, standards, standards_body,
@@ -167,7 +171,7 @@ fn main() {
         .manage(validator_url)
         .mount(
             "/api",
-            routes![
+            routes_with_openapi![
                 cors::cors_users_route,
                 cors::cors_users_auth_route,
                 cors::cors_batches_route,
@@ -209,6 +213,13 @@ fn main() {
             ],
         )
         .mount("/", routes![index, files])
+        .mount(
+            "/swagger-ui/",
+            make_swagger_ui(&SwaggerUIConfig {
+                url: Some("../openapi.json".to_owned()),
+                urls: None,
+            }),
+        )
         .attach(CORS())
         .launch();
 

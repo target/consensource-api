@@ -240,12 +240,12 @@ impl ApiStandardsBody {
         }
     }
 }
-
+#[openapi]
 #[get("/organizations/<organization_id>")]
 pub fn fetch_organization(organization_id: String, conn: DbConn) -> Result<JsonValue, ApiError> {
     fetch_organization_with_params(organization_id, None, conn)
 }
-
+#[openapi]
 #[get("/organizations/<organization_id>?<head_param..>")]
 pub fn fetch_organization_with_params(
     organization_id: String,
@@ -338,12 +338,12 @@ pub struct OrganizationParams {
     offset: Option<i64>,
     head: Option<i64>,
 }
-
+#[openapi]
 #[get("/organizations")]
 pub fn list_organizations(conn: DbConn) -> Result<JsonValue, ApiError> {
     list_organizations_with_params(None, conn)
 }
-
+#[openapi]
 #[get("/organizations?<params..>")]
 pub fn list_organizations_with_params(
     params: Option<Form<OrganizationParams>>,

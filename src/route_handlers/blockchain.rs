@@ -57,7 +57,7 @@ impl Serialize for BatchStatusWrapper {
         state.end()
     }
 }
-
+#[openapi(skip)]
 #[post("/batches", format = "application/octet-stream", data = "<data>")]
 pub fn submit_batches(
     data: Data,
@@ -113,7 +113,7 @@ pub struct BatchStatusesParams {
     id: String,
     wait: Option<u32>,
 }
-
+#[openapi]
 #[get("/batch_statuses?<params..>")]
 pub fn list_statuses(
     params: Form<BatchStatusesParams>,

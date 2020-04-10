@@ -46,12 +46,12 @@ impl ApiAgent {
         }
     }
 }
-
+#[openapi]
 #[get("/agents/<public_key>")]
 pub fn fetch_agent(public_key: String, conn: DbConn) -> Result<JsonValue, ApiError> {
     fetch_agent_with_head_param(public_key, None, conn)
 }
-
+#[openapi]
 #[get("/agents/<public_key>?<head_param..>")]
 pub fn fetch_agent_with_head_param(
     public_key: String,
@@ -109,12 +109,12 @@ pub struct AgentParams {
     offset: Option<i64>,
     head: Option<i64>,
 }
-
+#[openapi]
 #[get("/agents")]
 pub fn list_agents(conn: DbConn) -> Result<JsonValue, ApiError> {
     list_agents_with_params(None, conn)
 }
-
+#[openapi]
 #[get("/agents?<params..>")]
 pub fn list_agents_with_params(
     params: Option<Form<AgentParams>>,

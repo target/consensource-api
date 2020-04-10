@@ -17,12 +17,12 @@ use std::collections::HashMap;
 use route_handlers::organizations::ApiFactory;
 use route_handlers::prom::increment_http_req;
 use route_handlers::standards::ApiStandard;
-
+#[openapi]
 #[get("/requests/<request_id>")]
 pub fn fetch_request(request_id: String, conn: DbConn) -> Result<JsonValue, ApiError> {
     fetch_request_with_head_param(request_id, None, conn)
 }
-
+#[openapi]
 #[get("/requests/<request_id>?<head_param..>")]
 pub fn fetch_request_with_head_param(
     request_id: String,
@@ -169,12 +169,12 @@ pub enum StandardExpansion {
     Ref { id: String, link: String },
     Expanded(ApiStandard),
 }
-
+#[openapi]
 #[get("/requests")]
 pub fn list_requests(conn: DbConn) -> Result<JsonValue, ApiError> {
     query_requests(None, conn)
 }
-
+#[openapi]
 #[get("/requests?<params..>")]
 pub fn list_request_with_params(
     params: Option<Form<CertRequestParams>>,

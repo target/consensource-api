@@ -25,12 +25,12 @@ pub struct FactoryParams {
     head: Option<i64>,
     expand: Option<bool>,
 }
-
+#[openapi]
 #[get("/factories/<organization_id>")]
 pub fn fetch_factory(organization_id: String, conn: DbConn) -> Result<JsonValue, ApiError> {
     fetch_factory_with_head_param(organization_id, None, conn)
 }
-
+#[openapi]
 #[get("/factories/<organization_id>?<params..>")]
 pub fn fetch_factory_with_head_param(
     organization_id: String,
@@ -114,12 +114,12 @@ pub fn fetch_factory_with_head_param(
         ))),
     }
 }
-
+#[openapi]
 #[get("/factories")]
 pub fn list_factories(conn: DbConn) -> Result<JsonValue, ApiError> {
     query_factories(None, conn)
 }
-
+#[openapi]
 #[get("/factories?<params..>")]
 pub fn list_factories_params(
     params: Option<Form<FactoryParams>>,

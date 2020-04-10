@@ -70,12 +70,12 @@ impl<'a> From<(&'a Standard, &'a Vec<StandardVersion>)> for ApiStandard {
         }
     }
 }
-
+#[openapi]
 #[get("/standards")]
 pub fn list_standards(conn: DbConn) -> Result<JsonValue, ApiError> {
     list_standards_with_params(None, conn)
 }
-
+#[openapi]
 #[get("/standards?<params..>")]
 pub fn list_standards_with_params(
     params: Option<Form<StandardParams>>,

@@ -17,7 +17,7 @@ pub struct StandardBodyParams {
     offset: Option<i64>,
     head: Option<i64>,
 }
-
+#[openapi]
 #[get("/standards_body/standards?<params..>")]
 pub fn list_standards_belonging_to_org(
     params: Option<Form<StandardBodyParams>>,

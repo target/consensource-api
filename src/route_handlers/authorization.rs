@@ -1,6 +1,7 @@
 use bcrypt::{hash, verify, BcryptError};
 use rocket_contrib::json::{Json, JsonValue};
 use route_handlers::prom::{increment_http_req, increment_signin};
+use schemars::JsonSchema;
 
 use database::DbConn;
 use database_manager::models::User;
@@ -10,7 +11,7 @@ use diesel::prelude::*;
 use errors::ApiError;
 use jwt;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct UserCreate {
     /// The users's public key for their off-chain identity
     pub public_key: String,
@@ -21,7 +22,7 @@ pub struct UserCreate {
     /// The hash of the site-specific password
     pub password: String,
 }
-
+#[openapi(skip)]
 #[post("/users", format = "application/json", data = "<payload>", rank = 1)]
 pub fn create_user(
     payload: Json<UserCreate>,
@@ -54,12 +55,13 @@ pub fn create_user(
 ///
 /// Without this endpoint, when JWT auth fails there is nowhere to forward
 /// the request to and the client receives a 404 error.
+#[openapi(skip)]
 #[post("/users", format = "application/json", rank = 2)]
 pub fn create_user_jwt_failure() -> Result<JsonValue, ApiError> {
     Err(ApiError::Unauthorized)
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, JsonSchema)]
 pub struct UserUpdate {
     /// A site-specific username
     pub username: String,
@@ -70,7 +72,7 @@ pub struct UserUpdate {
     /// A base64-encoded encrypted string of the private key
     pub encrypted_private_key: String,
 }
-
+#[openapi(skip)]
 #[patch("/users/<public_key>", format = "application/json", data = "<payload>")]
 pub fn update_user(
     payload: Json<UserUpdate>,
@@ -98,14 +100,14 @@ pub fn update_user(
     Err(ApiError::Unauthorized)
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct UserAuthenticate {
     /// A site-specific username
     pub username: String,
     /// The hash of the site-specific password
     pub password: String,
 }
-
+#[openapi(skip)]
 #[post("/users/authenticate", format = "application/json", data = "<payload>")]
 pub fn authenticate(payload: Json<UserAuthenticate>, conn: DbConn) -> Result<JsonValue, ApiError> {
     // Increment HTTP request count for Prometheus metrics

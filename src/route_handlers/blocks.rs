@@ -133,12 +133,12 @@ fn start_sse_server(host: &str, port: u16) -> thread::JoinHandle<()> {
             .expect("Should have been a valid address"),
     )
 }
-
+#[openapi]
 #[get("/blocks/<block_id>")]
 pub fn fetch_block(block_id: String, conn: DbConn) -> Result<JsonValue, ApiError> {
     fetch_block_with_head_param(block_id, None, conn)
 }
-
+#[openapi]
 #[get("/blocks/<block_id>?<head_param..>")]
 pub fn fetch_block_with_head_param(
     block_id: String,
@@ -181,12 +181,12 @@ pub struct BlockParams {
     offset: Option<i64>,
     head: Option<i64>,
 }
-
+#[openapi]
 #[get("/blocks")]
 pub fn list_blocks(conn: DbConn) -> Result<JsonValue, ApiError> {
     list_blocks_with_params(None, conn)
 }
-
+#[openapi]
 #[get("/blocks?<params..>")]
 pub fn list_blocks_with_params(
     params: Option<Form<BlockParams>>,

@@ -22,6 +22,7 @@ lazy_static! {
     .unwrap();
 }
 
+#[openapi]
 #[get("/prom_metrics")]
 pub fn get_metrics() -> String {
     let metric_families = prometheus::gather();

@@ -45,12 +45,12 @@ impl From<(Certificate, Organization, Standard, Organization)> for ApiCertificat
         }
     }
 }
-
+#[openapi]
 #[get("/certificates/<certificate_id>")]
 pub fn fetch_certificate(certificate_id: String, conn: DbConn) -> Result<JsonValue, ApiError> {
     fetch_certificate_with_head_param(certificate_id, None, conn)
 }
-
+#[openapi]
 #[get("/certificates/<certificate_id>?<head_param..>")]
 pub fn fetch_certificate_with_head_param(
     certificate_id: String,
@@ -128,12 +128,12 @@ pub struct CertificateParams {
     offset: Option<i64>,
     head: Option<i64>,
 }
-
+#[openapi]
 #[get("/certificates")]
 pub fn list_certificates(conn: DbConn) -> Result<JsonValue, ApiError> {
     list_certificates_with_params(None, conn)
 }
-
+#[openapi]
 #[get("/certificates?<params..>")]
 pub fn list_certificates_with_params(
     params: Option<Form<CertificateParams>>,

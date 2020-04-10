@@ -3,6 +3,7 @@ use rocket::http::Status;
 use rocket::request::Request;
 use rocket::response::{Responder, Response};
 use rocket_contrib::json::JsonValue;
+use schemars::JsonSchema;
 use std::io::Cursor;
 
 #[catch(404)]
@@ -35,7 +36,7 @@ pub fn service_unavailable() -> JsonValue {
     })
 }
 
-#[derive(Debug)]
+#[derive(Debug, JsonSchema)]
 pub enum ApiError {
     /// Defines the HTTP Errors that the API can return.
     BadRequest(String),
