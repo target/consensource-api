@@ -1,0 +1,256 @@
+swagger: "2.0"
+info:
+  description: "ConsenSource API Swagger specification"
+  version: "0.1.0"
+  title: "ConsenSource"
+  termsOfService: "http://confluence.target.com"
+  contact:
+    email: "bat-squad@target.com"
+  license:
+    name: "Apache 2.0"
+    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
+host: "consensourceapi.perf.target.com"
+basePath: "/"
+tags:
+  - name: "agents"
+    description: "Profiles associated to key pairs"
+  - name: "users"
+    description: "Accounts associated to agents (off chain)"
+  - name: "batches"
+    description: "Submit batches to state"
+  - name: "blocks"
+    description: "Block watcher that enables subscriptions"
+  - name: "certificates"
+    description: "List/Fetch Certificates"
+  - name: "cors"
+    description: "CORS Options endpoints"
+  - name: "factories"
+    description: "List/Fetch Factories"
+  - name: "health"
+    description: "Health check"
+  - name: "organizations"
+    description: "List/Fetch Organizations"
+  - name: "prom"
+    description: "Prometheus metrics"
+  - name: "requests"
+    description: "List/Fetch Requests"
+  - name: "standards_body"
+    description: "List Standards of a certain standards body"
+  - name: "standards"
+    description: "List Standards"
+schemes:
+  - "https"
+paths:
+  /agents/{public_key}:
+    get:
+      tags:
+        - "agents"
+      summary: "Find agent by public key"
+      description: "Returns a single agent"
+      operationId: "fetch_agent"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "public_key"
+          in: "path"
+          description: "Public Key of agent to return"
+          required: true
+          type: "string"
+        - name: "limit"
+          in: "query"
+          description: "Max number to return when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "offset"
+          in: "query"
+          description: "Index to start at when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "head"
+          in: "query"
+          description: "Block number to filter on"
+          required: false
+          type: "integer"
+          format: "int64"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/Agent"
+              link:
+                type: "string"
+              head:
+                type: "integer"
+                format: "int64"
+        404:
+          description: "No agent with the public key exists"
+        500:
+          description: "Internal Error related to database"
+      security:
+        - api_key: []
+  /agents:
+    get:
+      tags:
+        - "agents"
+      summary: "List multiple agents"
+      description: "Returns an array of agents"
+      operationId: "list_agents"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "limit"
+          in: "query"
+          description: "Max number to return when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "offset"
+          in: "query"
+          description: "Index to start at when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "head"
+          in: "query"
+          description: "Block number to filter on"
+          required: false
+          type: "integer"
+          format: "int64"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                type: "array"
+                items:
+                  $ref: "#/definitions/Agent"
+              link:
+                type: "string"
+              head:
+                type: "integer"
+                format: "int64"
+              paging:
+                type: "object"
+                properties:
+                  offset:
+                    type: "integer"
+                    format: "int64"
+                  limit:
+                    type: "integer"
+                    format: "int64"
+                  total:
+                    type: "integer"
+                    format: "int64"
+                  first:
+                    type: "string"
+                  prev:
+                    type: "string"
+                  next:
+                    type: "string"
+                  last:
+                    type: "string"
+        500:
+          description: "Internal Error related to database"
+      security:
+        - api_key: []
+  /users:
+    post:
+      tags:
+        - "users"
+      summary: "Creates a new user"
+      description: "Returns a status"
+      operationId: "create_user"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "public_key"
+          in: "path"
+          description: "Public Key of agent to return"
+          required: true
+          type: "string"
+        - name: "limit"
+          in: "query"
+          description: "Max number to return when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "offset"
+          in: "query"
+          description: "Index to start at when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "head"
+          in: "query"
+          description: "Block number to filter on"
+          required: false
+          type: "integer"
+          format: "int64"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                $ref: "#/definitions/Agent"
+              link:
+                type: "string"
+              head:
+                type: "integer"
+                format: "int64"
+        404:
+          description: "No agent with the public key exists"
+        500:
+          description: "Internal Error related to database"
+      security:
+        - api_key: []
+definitions:
+  Agent:
+    type: "object"
+    required:
+      - "public_key"
+      - "name"
+      - "created_on"
+    properties:
+      public_key:
+        type: "string"
+      name:
+        type: "string"
+      created_on:
+        type: "integer"
+        format: "int64"
+      organization:
+        $ref: "#/definitions/Organization"
+  Organization:
+    type: "object"
+    required:
+      - "id"
+      - "name"
+      - "organization_type"
+    properties:
+      id:
+        type: "string"
+      name:
+        type: "string"
+      organization_type:
+        type: "integer"
+        format: "int64"
+        enum:
+          - 0
+          - 1
+          - 2
+          - 3
+        description: >
+          Org Types:
+            * `0` - Standards Body
+            * `1` - Certifying Body
+            * `2` - Factory
+            * `3` - Unset Type
