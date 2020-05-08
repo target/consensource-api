@@ -170,9 +170,192 @@ paths:
       produces:
         - "application/json"
       parameters:
+        - name: "data"
+          in: "body"
+          description: "User create payload"
+          required: true
+          schema:
+            $ref: "#/definitions/UserCreate"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              status:
+                type: "string"
+                example: "ok"
+        400:
+          description: "User already exists by that name"
+        401:
+          description: "Unauthorized!"
+        500:
+          description: "Internal Error related to database"
+      security:
+        - api_key: []
+  /users/{public_key}:
+    patch:
+      tags:
+        - "users"
+      summary: "Updates a user"
+      description: "Returns a status"
+      operationId: "update_user"
+      produces:
+        - "application/json"
+      parameters:
         - name: "public_key"
           in: "path"
-          description: "Public Key of agent to return"
+          description: "Public key of user to update"
+          required: true
+          type: "string"
+        - name: "data"
+          in: "body"
+          description: "User update payload"
+          required: true
+          schema:
+            $ref: "#/definitions/UserUpdate"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              status:
+                type: "string"
+                example: "ok"
+        401:
+          description: "Unauthorized!"
+        500:
+          description: "Internal Error related to database"
+      security:
+        - api_key: []
+  /users/authenticate:
+    patch:
+      tags:
+        - "users"
+      summary: "Authenticates a user"
+      description: "Returns a status"
+      operationId: "authenticate"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "username"
+          in: "body"
+          description: "User name to sign in with"
+          required: true
+          type: "string"
+        - name: "password"
+          in: "body"
+          description: "Password to sign in with"
+          required: true
+          type: "string"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              status:
+                type: "string"
+              username:
+                type: "string"
+              public_key:
+                type: "string"
+              encrypted_private_key:
+                type: "string"
+        401:
+          description: "Unauthorized!"
+        500:
+          description: "Internal Error related to database"
+      security:
+        - api_key: []
+  /batches:
+    post:
+      tags:
+        - "batches"
+      summary: "Submit Transactions in a Batch for processing"
+      description: "Returns a Batch Status link"
+      operationId: "submit_batches"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "data"
+          in: "body"
+          description: "BatchList as bytes"
+          required: true
+          type: "string"
+          schema:
+            type: string
+            format: binary
+      responses:
+        200:
+          description: "succeeded operation"
+          schema:
+            type: "object"
+            properties:
+              link:
+                type: "string"
+        400:
+          description: "Bad Request: Invalid Batch"
+        429:
+          description: "Too Many Requests: Validator queue full"
+        500:
+          description: "Internal Error related to Validator"
+      security:
+        - api_key: []
+  /batch_statuses:
+    get:
+      tags:
+        - "batches"
+      summary: "Check Status of Batches"
+      description: "Returns an array of statuses with a link"
+      operationId: "list_statuses"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "id"
+          in: "body"
+          description: "comma-separated list of Batch IDs"
+          required: true
+          type: "string"
+        - name: "wait"
+          in: "body"
+          description: "Time in seconds to wait for commit"
+          required: false
+          type: "integer"
+          format: "uint32"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "object"
+            properties:
+              data:
+                schema:
+                  $ref: "#/definitions/BatchStatuses"
+              link:
+                type: "string"
+        400:
+          description: "Bad Request: Invalid ID or No Resource"
+        429:
+          description: "Too Many Requests: Validator queue full"
+        500:
+          description: "Internal Error related to Validator"
+      security:
+        - api_key: []
+  /blocks/{block_id}:
+    get:
+      tags:
+        - "blocks"
+      summary: "Fetch a block"
+      description: "Returns information about one Block"
+      operationId: "fetch_block"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "block_id"
+          in: "path"
+          description: "ID of the Block to fetch"
           required: true
           type: "string"
         - name: "limit"
@@ -199,17 +382,82 @@ paths:
           schema:
             type: "object"
             properties:
-              data:
-                $ref: "#/definitions/Agent"
-              link:
+              - data:
+                schema:
+                  type: "object"
+                  properties:
+                    - block_num:
+                      type: "integer"
+                      format: "int64"
+                    - block_id:
+                      type: "string"
+              - link:
                 type: "string"
-              head:
+              - head:
                 type: "integer"
                 format: "int64"
         404:
-          description: "No agent with the public key exists"
+          description: "No block with the ID exists"
         500:
           description: "Internal Error related to database"
+        503:
+          description: "Service Unavailable"
+      security:
+        - api_key: []
+  /blocks:
+    get:
+      tags:
+        - "blocks"
+      summary: "List blocks"
+      description: "Returns information about multiple Blocks"
+      operationId: "list_block"
+      produces:
+        - "application/json"
+      parameters:
+        - name: "limit"
+          in: "query"
+          description: "Max number to return when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "offset"
+          in: "query"
+          description: "Index to start at when paging"
+          required: false
+          type: "integer"
+          format: "int64"
+        - name: "head"
+          in: "query"
+          description: "Block number to filter on"
+          required: false
+          type: "integer"
+          format: "int64"
+      responses:
+        200:
+          description: "successful operation"
+          schema:
+            type: "array"
+            properties:
+              - data:
+                schema:
+                  type: "object"
+                  properties:
+                    - block_num:
+                      type: "integer"
+                      format: "int64"
+                    - block_id:
+                      type: "string"
+              - link:
+                type: "string"
+              - head:
+                type: "integer"
+                format: "int64"
+        404:
+          description: "No block with the ID exists"
+        500:
+          description: "Internal Error related to database"
+        503:
+          description: "Service Unavailable"
       security:
         - api_key: []
 definitions:
@@ -254,3 +502,64 @@ definitions:
             * `1` - Certifying Body
             * `2` - Factory
             * `3` - Unset Type
+  UserCreate:
+    type: "object"
+    required:
+      - "public_key"
+      - "encrypted_private_key"
+      - "username"
+      - "password"
+    properties:
+      public_key:
+        type: "string"
+      encrypted_private_key:
+        type: "string"
+      username:
+        type: "string"
+      password:
+        type: "string"
+  UserUpdate:
+    type: "object"
+    required:
+      - "username"
+      - "old_password"
+      - "password"
+      - "encrypted_private_key"
+    properties:
+      username:
+        type: "string"
+      old_password:
+        type: "string"
+      password:
+        type: "string"
+      encrypted_private_key:
+        type: "string"
+  BatchStatuses:
+    type: array
+    items:
+      properties:
+        id:
+          type: string
+          example: 89807bfc9089e37e00d87d97357de14cfbc455cd608438d426a625a30a0da9a31c406983803c4aa27e1f32a3ff61709e8ec4b56abbc553d7d330635b5d27029c
+        status:
+          type: string
+          example: INVALID
+          enum:
+            - COMMITTED
+            - INVALID
+            - PENDING
+            - UNKNOWN
+        invalid_transactions:
+          type: array
+          items:
+            properties:
+              id:
+                type: string
+                example: 540a6803971d1880ec73a96cb97815a95d374cbad5d865925e5aa0432fcf1931539afe10310c122c5eaae15df61236079abbf4f258889359c4d175516934484a
+              message:
+                type: string
+                example: Verb is \"inc\" but name \"foo\" not in state
+              extended_data:
+                type: string
+                format: byte
+                example: ZXJyb3IgZGF0YQ==
