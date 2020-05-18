@@ -184,3 +184,94 @@ fn apply_paging(params: AgentParams, head: i64, total_count: i64) -> Result<Json
 
     get_response_paging_info(params.limit, params.offset, link, total_count)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use database_manager::models::NewAgent;
+    use route_handlers::tests::{get_connection_pool, run_test};
+
+    #[test]
+    /// Test that a Get to `/api/agents/{public_key}` succeeds
+    /// when the agent exists with the given `public_key`
+    fn test_agent_fetch_valid_pubkey_success() {
+        run_test(|| {
+            let conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            let agent = NewAgent {
+                start_block_num: 1,
+                end_block_num: 2,
+                public_key: "test_key".to_string(),
+                name: "test_name".to_string(),
+                organization_id: None,
+                timestamp: 1 as i64,
+            };
+            diesel::insert_into(agents::table)
+                .values(agent)
+                .execute(&conn)
+                .unwrap();
+            let response = fetch_agent("test_key".to_string(), DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                "data": {
+                    "public_key": "test_key".to_string(),
+                    "name": "test_name".to_string(),
+                    "created_on": 1 as i64
+                },
+                "head": 1 as i64,
+                "link": "/api/agents/test_key?head=1".to_string()
+                })
+            );
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/agents` returns an `Ok` response and sends back all
+    /// agents in an array when the DB is populated
+    fn test_agents_list_endpoint() {
+        run_test(|| {
+            let conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            let agent = NewAgent {
+                start_block_num: 1,
+                end_block_num: 2,
+                public_key: "test_key".to_string(),
+                name: "test_name".to_string(),
+                organization_id: None,
+                timestamp: 1 as i64,
+            };
+            diesel::insert_into(agents::table)
+                .values(agent)
+                .execute(&conn)
+                .unwrap();
+
+            let response = list_agents(DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                    "data": [{
+                        "public_key": "test_key".to_string(),
+                        "name": "test_name".to_string(),
+                        "created_on": 1 as i64
+                    }],
+                    "head": 1 as i64,
+                    "link": "/api/agents?head=1&limit=100&offset=0".to_string(),
+                    "paging": {
+                        "first": "/api/agents?head=1&limit=100&offset=0".to_string(),
+                        "last": "/api/agents?head=1&limit=100&offset=0".to_string(),
+                        "limit": 100 as i64,
+                        "next": "/api/agents?head=1&limit=100&offset=0".to_string(),
+                        "offset": 0 as i64,
+                        "prev": "/api/agents?head=1&limit=100&offset=0".to_string(),
+                        "total": 1 as i64,
+                    }
+                })
+            );
+        })
+    }
+}

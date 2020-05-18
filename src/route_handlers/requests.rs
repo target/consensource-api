@@ -314,7 +314,7 @@ fn fetch_expansions(
         .into_iter()
         .fold(HashMap::new(), |mut acc, contact| {
             acc.entry(contact.organization_id.to_string())
-                .or_insert_with(|| vec![])
+                .or_insert_with(Vec::new)
                 .push(contact);
             acc
         });
@@ -329,7 +329,7 @@ fn fetch_expansions(
         .into_iter()
         .fold(HashMap::new(), |mut acc, authorization| {
             acc.entry(authorization.organization_id.to_string())
-                .or_insert_with(|| vec![])
+                .or_insert_with(Vec::new)
                 .push(authorization);
             acc
         });
@@ -368,7 +368,7 @@ fn fetch_expansions(
         .into_iter()
         .fold(HashMap::new(), |mut acc, standard_version| {
             acc.entry(standard_version.standard_id.to_string())
-                .or_insert_with(|| vec![])
+                .or_insert_with(Vec::new)
                 .push(standard_version);
             acc
         });
