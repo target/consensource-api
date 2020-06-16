@@ -54,7 +54,7 @@ use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use rocket::response::NamedFile;
 use route_handlers::{
-    agents, authorization, blockchain, blocks, certificates, cors, factories, health,
+    agents, assertions, authorization, blockchain, blocks, certificates, cors, factories, health,
     organizations, prom, requests, standards, standards_body,
 };
 use std::path::{Path, PathBuf};
@@ -176,6 +176,10 @@ fn main() {
                 agents::fetch_agent_with_head_param,
                 agents::list_agents,
                 agents::list_agents_with_params,
+                assertions::fetch_assertions,
+                assertions::fetch_assertions_with_params,
+                assertions::list_assertions,
+                assertions::list_assertions_with_params,
                 authorization::create_user,
                 authorization::create_user_jwt_failure,
                 authorization::update_user,

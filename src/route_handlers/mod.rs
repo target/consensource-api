@@ -56,6 +56,8 @@ pub mod tests {
                     agents::fetch_agent_with_head_param,
                     agents::list_agents,
                     agents::list_agents_with_params,
+                    assertions::fetch_assertions,
+                    assertions::fetch_assertions_with_params,
                     assertions::list_assertions,
                     assertions::list_assertions_with_params,
                     authorization::create_user,
