@@ -1,6 +1,6 @@
 use database::DbConn;
 use database_manager::models::{Certificate, Organization, Standard};
-use database_manager::tables_schema::{certificates, organizations, standards};
+use database_manager::tables_schema::{assertions, certificates, organizations, standards};
 use diesel::prelude::*;
 use errors::ApiError;
 use paging::*;
@@ -20,6 +20,8 @@ pub struct ApiCertificate {
     standard_version: String,
     valid_from: i64,
     valid_to: i64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    assertion_id: Option<String>,
 }
 
 impl From<(Certificate, Organization, Standard, Organization)> for ApiCertificate {
@@ -42,6 +44,41 @@ impl From<(Certificate, Organization, Standard, Organization)> for ApiCertificat
             standard_version: certificate.standard_version,
             valid_from: certificate.valid_from,
             valid_to: certificate.valid_to,
+            assertion_id: None,
+        }
+    }
+}
+
+impl
+    From<(
+        Certificate,
+        Organization,
+        Standard,
+        Organization,
+        Option<String>,
+    )> for ApiCertificate
+{
+    fn from(
+        (certificate, factory, standard, auditor, assertion_id): (
+            Certificate,
+            Organization,
+            Standard,
+            Organization,
+            Option<String>,
+        ),
+    ) -> Self {
+        ApiCertificate {
+            id: certificate.certificate_id,
+            certifying_body_id: auditor.organization_id,
+            certifying_body: auditor.name,
+            factory_id: factory.organization_id,
+            factory_name: factory.name,
+            standard_id: certificate.standard_id,
+            standard_name: standard.name,
+            standard_version: certificate.standard_version,
+            valid_from: certificate.valid_from,
+            valid_to: certificate.valid_to,
+            assertion_id,
         }
     }
 }
@@ -65,43 +102,71 @@ pub fn fetch_certificate_with_head_param(
         None => Default::default(),
     };
     let head_block_num: i64 = get_head_block_num(head_param.head, &conn)?;
-    let result: Option<Result<(Certificate, Organization, Standard, Organization), ApiError>> =
-        certificates::table
-            .filter(certificates::certificate_id.eq(certificate_id.to_string()))
-            .filter(certificates::start_block_num.le(head_block_num))
-            .filter(certificates::end_block_num.gt(head_block_num))
-            .left_join(
-                standards::table.on(standards::standard_id
-                    .eq(certificates::standard_id)
-                    .and(standards::start_block_num.le(head_block_num))
-                    .and(standards::end_block_num.gt(head_block_num))),
-            )
-            .left_join(
-                organizations::table.on(organizations::organization_id
-                    .eq(certificates::certifying_body_id)
-                    .and(organizations::start_block_num.le(head_block_num))
-                    .and(organizations::end_block_num.gt(head_block_num))),
-            )
-            .first::<(Certificate, Option<Standard>, Option<Organization>)>(&*conn)
-            .optional()
-            .map_err(|err| ApiError::InternalError(err.to_string()))?
-            .map(|(cert, std_opt, org_opt)| {
-                let factory = require_org(&conn, &cert.factory_id, head_block_num)?;
-                Ok((
-                    cert,
-                    factory,
-                    std_opt.ok_or_else(|| {
-                        ApiError::InternalError(
-                            "No Standard was provided, but one must exist".to_string(),
-                        )
-                    })?,
-                    org_opt.ok_or_else(|| {
-                        ApiError::InternalError(
-                            "No Certifying Body was provided, but one must exist".to_string(),
-                        )
-                    })?,
-                ))
-            });
+    let result: Option<
+        Result<
+            (
+                Certificate,
+                Organization,
+                Standard,
+                Organization,
+                Option<String>,
+            ),
+            ApiError,
+        >,
+    > = certificates::table
+        .filter(certificates::certificate_id.eq(certificate_id.clone()))
+        .filter(certificates::start_block_num.le(head_block_num))
+        .filter(certificates::end_block_num.gt(head_block_num))
+        .left_join(
+            standards::table.on(standards::standard_id
+                .eq(certificates::standard_id)
+                .and(standards::start_block_num.le(head_block_num))
+                .and(standards::end_block_num.gt(head_block_num))),
+        )
+        .left_join(
+            organizations::table.on(organizations::organization_id
+                .eq(certificates::certifying_body_id)
+                .and(organizations::start_block_num.le(head_block_num))
+                .and(organizations::end_block_num.gt(head_block_num))),
+        )
+        .left_join(
+            assertions::table.on(assertions::object_id
+                .eq(certificate_id.clone())
+                .and(assertions::start_block_num.le(head_block_num))
+                .and(assertions::end_block_num.gt(head_block_num))),
+        )
+        .select((
+            certificates::table::all_columns(),
+            standards::table::all_columns().nullable(),
+            organizations::table::all_columns().nullable(),
+            assertions::assertion_id.nullable(),
+        ))
+        .first::<(
+            Certificate,
+            Option<Standard>,
+            Option<Organization>,
+            Option<String>,
+        )>(&*conn)
+        .optional()
+        .map_err(|err| ApiError::InternalError(err.to_string()))?
+        .map(|(cert, std_opt, org_opt, assertion_id)| {
+            let factory = require_org(&conn, &cert.factory_id, head_block_num)?;
+            Ok((
+                cert,
+                factory,
+                std_opt.ok_or_else(|| {
+                    ApiError::InternalError(
+                        "No Standard was provided, but one must exist".to_string(),
+                    )
+                })?,
+                org_opt.ok_or_else(|| {
+                    ApiError::InternalError(
+                        "No Certifying Body was provided, but one must exist".to_string(),
+                    )
+                })?,
+                assertion_id,
+            ))
+        });
 
     let link = format!(
         "/api/certificates/{}?head={}",
@@ -163,6 +228,12 @@ pub fn list_certificates_with_params(
                 .and(organizations::start_block_num.le(head_block_num))
                 .and(organizations::end_block_num.gt(head_block_num))),
         )
+        .left_join(
+            assertions::table.on(assertions::object_id
+                .eq(certificates::certificate_id)
+                .and(assertions::start_block_num.le(head_block_num))
+                .and(assertions::end_block_num.gt(head_block_num))),
+        )
         .into_boxed();
 
     let mut count_query = certificates::table
@@ -193,10 +264,21 @@ pub fn list_certificates_with_params(
     certificate_query = certificate_query.offset(params.offset.unwrap_or(DEFAULT_OFFSET));
 
     let certificates: Vec<ApiCertificate> = certificate_query
-        .load::<(Certificate, Option<Standard>, Option<Organization>)>(&*conn)
+        .select((
+            certificates::table::all_columns(),
+            standards::table::all_columns().nullable(),
+            organizations::table::all_columns().nullable(),
+            assertions::assertion_id.nullable(),
+        ))
+        .load::<(
+            Certificate,
+            Option<Standard>,
+            Option<Organization>,
+            Option<String>,
+        )>(&*conn)
         .map_err(|err| ApiError::InternalError(err.to_string()))?
         .into_iter()
-        .map(|(cert, std_opt, org_opt)| {
+        .map(|(cert, std_opt, org_opt, assertion_id)| {
             let factory = require_org(&conn, &cert.factory_id, head_block_num)?;
             Ok(ApiCertificate::from((
                 cert,
@@ -211,6 +293,7 @@ pub fn list_certificates_with_params(
                         "No Certifying Body was provided, but one must exist".to_string(),
                     )
                 })?,
+                assertion_id,
             )))
         })
         .collect::<Result<Vec<_>, ApiError>>()?;
@@ -253,4 +336,381 @@ fn apply_paging(
     link = format!("{}head={}&", link, head);
 
     get_response_paging_info(params.limit, params.offset, link, total_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use database_manager::custom_types::{AssertionTypeEnum, OrganizationTypeEnum};
+    use database_manager::models::{NewAssertion, NewCertificate, NewOrganization, NewStandard};
+    use route_handlers::tests::{get_connection_pool, run_test};
+
+    #[test]
+    /// Test that a Get to `/api/certificates/{id}` succeeds
+    /// when the certificate exists with the given `id`
+    fn test_certificate_fetch_valid_id_success() {
+        run_test(|| {
+            let conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            let cert = NewCertificate {
+                start_block_num: 1,
+                end_block_num: 2,
+                certificate_id: "test_cert_id".to_string(),
+                certifying_body_id: "test_cert_body_id".to_string(),
+                factory_id: "test_factory_id".to_string(),
+                standard_id: "test_standard_id".to_string(),
+                standard_version: "test_standard_version".to_string(),
+                valid_from: 1 as i64,
+                valid_to: 2 as i64,
+            };
+            diesel::insert_into(certificates::table)
+                .values(cert)
+                .execute(&conn)
+                .unwrap();
+            let factory = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_factory_id".to_string(),
+                name: "test_factory_name".to_string(),
+                organization_type: OrganizationTypeEnum::Factory,
+            };
+            diesel::insert_into(organizations::table)
+                .values(factory)
+                .execute(&conn)
+                .unwrap();
+            let cert_body = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_cert_body_id".to_string(),
+                name: "test_cert_body_name".to_string(),
+                organization_type: OrganizationTypeEnum::CertifyingBody,
+            };
+            diesel::insert_into(organizations::table)
+                .values(cert_body)
+                .execute(&conn)
+                .unwrap();
+            let standard = NewStandard {
+                start_block_num: 1,
+                end_block_num: 2,
+                standard_id: "test_standard_id".to_string(),
+                organization_id: "test_standards_body_id".to_string(),
+                name: "test_standard_name".to_string(),
+            };
+            diesel::insert_into(standards::table)
+                .values(standard)
+                .execute(&conn)
+                .unwrap();
+            let response = fetch_certificate("test_cert_id".to_string(), DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                "data": {
+                    "id": "test_cert_id".to_string(),
+                    "certifying_body_id": "test_cert_body_id".to_string(),
+                    "certifying_body": "test_cert_body_name".to_string(),
+                    "factory_id": "test_factory_id".to_string(),
+                    "factory_name": "test_factory_name".to_string(),
+                    "standard_id": "test_standard_id".to_string(),
+                    "standard_name": "test_standard_name".to_string(),
+                    "standard_version": "test_standard_version".to_string(),
+                    "valid_from": 1 as i64,
+                    "valid_to": 2 as i64,
+                },
+                "head": 1 as i64,
+                "link": "/api/certificates/test_cert_id?head=1".to_string()
+                })
+            );
+        })
+    }
+
+    #[test]
+    /// Test that a Get to `/api/certificates/{id}` succeeds
+    /// when the certificate exists with the given `id` and `assertion_id`
+    fn test_certificate_fetch_valid_id_with_assertion_success() {
+        run_test(|| {
+            let conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            let cert = NewCertificate {
+                start_block_num: 1,
+                end_block_num: 2,
+                certificate_id: "test_cert_id".to_string(),
+                certifying_body_id: "test_cert_body_id".to_string(),
+                factory_id: "test_factory_id".to_string(),
+                standard_id: "test_standard_id".to_string(),
+                standard_version: "test_standard_version".to_string(),
+                valid_from: 1 as i64,
+                valid_to: 2 as i64,
+            };
+            diesel::insert_into(certificates::table)
+                .values(cert)
+                .execute(&conn)
+                .unwrap();
+            let factory = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_factory_id".to_string(),
+                name: "test_factory_name".to_string(),
+                organization_type: OrganizationTypeEnum::Factory,
+            };
+            diesel::insert_into(organizations::table)
+                .values(factory)
+                .execute(&conn)
+                .unwrap();
+            let cert_body = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_cert_body_id".to_string(),
+                name: "test_cert_body_name".to_string(),
+                organization_type: OrganizationTypeEnum::CertifyingBody,
+            };
+            diesel::insert_into(organizations::table)
+                .values(cert_body)
+                .execute(&conn)
+                .unwrap();
+            let standard = NewStandard {
+                start_block_num: 1,
+                end_block_num: 2,
+                standard_id: "test_standard_id".to_string(),
+                organization_id: "test_standards_body_id".to_string(),
+                name: "test_standard_name".to_string(),
+            };
+            diesel::insert_into(standards::table)
+                .values(standard)
+                .execute(&conn)
+                .unwrap();
+            let assertion = NewAssertion {
+                start_block_num: 1,
+                end_block_num: 2,
+                assertion_id: "test_assertion_id".to_string(),
+                assertor_pub_key: "test_key".to_string(),
+                assertion_type: AssertionTypeEnum::Factory,
+                object_id: "test_cert_id".to_string(),
+                data_id: None,
+            };
+            diesel::insert_into(assertions::table)
+                .values(assertion)
+                .execute(&conn)
+                .unwrap();
+            let response = fetch_certificate("test_cert_id".to_string(), DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                "data": {
+                    "id": "test_cert_id".to_string(),
+                    "certifying_body_id": "test_cert_body_id".to_string(),
+                    "certifying_body": "test_cert_body_name".to_string(),
+                    "factory_id": "test_factory_id".to_string(),
+                    "factory_name": "test_factory_name".to_string(),
+                    "standard_id": "test_standard_id".to_string(),
+                    "standard_name": "test_standard_name".to_string(),
+                    "standard_version": "test_standard_version".to_string(),
+                    "valid_from": 1 as i64,
+                    "valid_to": 2 as i64,
+                    "assertion_id": "test_assertion_id".to_string(),
+                },
+                "head": 1 as i64,
+                "link": "/api/certificates/test_cert_id?head=1".to_string()
+                })
+            );
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/certificates` returns an `Ok` response and sends back all
+    /// certificates in an array when the DB is populated
+    fn test_certificates_list_endpoint() {
+        run_test(|| {
+            let conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            let cert = NewCertificate {
+                start_block_num: 1,
+                end_block_num: 2,
+                certificate_id: "test_cert_id".to_string(),
+                certifying_body_id: "test_cert_body_id".to_string(),
+                factory_id: "test_factory_id".to_string(),
+                standard_id: "test_standard_id".to_string(),
+                standard_version: "test_standard_version".to_string(),
+                valid_from: 1 as i64,
+                valid_to: 2 as i64,
+            };
+            diesel::insert_into(certificates::table)
+                .values(cert)
+                .execute(&conn)
+                .unwrap();
+            let factory = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_factory_id".to_string(),
+                name: "test_factory_name".to_string(),
+                organization_type: OrganizationTypeEnum::Factory,
+            };
+            diesel::insert_into(organizations::table)
+                .values(factory)
+                .execute(&conn)
+                .unwrap();
+            let cert_body = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_cert_body_id".to_string(),
+                name: "test_cert_body_name".to_string(),
+                organization_type: OrganizationTypeEnum::CertifyingBody,
+            };
+            diesel::insert_into(organizations::table)
+                .values(cert_body)
+                .execute(&conn)
+                .unwrap();
+            let standard = NewStandard {
+                start_block_num: 1,
+                end_block_num: 2,
+                standard_id: "test_standard_id".to_string(),
+                organization_id: "test_standards_body_id".to_string(),
+                name: "test_standard_name".to_string(),
+            };
+            diesel::insert_into(standards::table)
+                .values(standard)
+                .execute(&conn)
+                .unwrap();
+
+            let response = list_certificates(DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                    "data": [{
+                        "id": "test_cert_id".to_string(),
+                        "certifying_body_id": "test_cert_body_id".to_string(),
+                        "certifying_body": "test_cert_body_name".to_string(),
+                        "factory_id": "test_factory_id".to_string(),
+                        "factory_name": "test_factory_name".to_string(),
+                        "standard_id": "test_standard_id".to_string(),
+                        "standard_name": "test_standard_name".to_string(),
+                        "standard_version": "test_standard_version".to_string(),
+                        "valid_from": 1 as i64,
+                        "valid_to": 2 as i64,
+                    }],
+                    "head": 1 as i64,
+                    "link": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                    "paging": {
+                        "first": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "last": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "limit": 100 as i64,
+                        "next": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "offset": 0 as i64,
+                        "prev": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "total": 1 as i64,
+                    }
+                })
+            );
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/certificates` returns an `Ok` response and sends back all
+    /// certificates with assertions included in an array when the DB is populated
+    fn test_certificates_list_endpoint_with_assertion() {
+        run_test(|| {
+            let conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            let cert = NewCertificate {
+                start_block_num: 1,
+                end_block_num: 2,
+                certificate_id: "test_cert_id".to_string(),
+                certifying_body_id: "test_cert_body_id".to_string(),
+                factory_id: "test_factory_id".to_string(),
+                standard_id: "test_standard_id".to_string(),
+                standard_version: "test_standard_version".to_string(),
+                valid_from: 1 as i64,
+                valid_to: 2 as i64,
+            };
+            diesel::insert_into(certificates::table)
+                .values(cert)
+                .execute(&conn)
+                .unwrap();
+            let factory = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_factory_id".to_string(),
+                name: "test_factory_name".to_string(),
+                organization_type: OrganizationTypeEnum::Factory,
+            };
+            diesel::insert_into(organizations::table)
+                .values(factory)
+                .execute(&conn)
+                .unwrap();
+            let cert_body = NewOrganization {
+                start_block_num: 1,
+                end_block_num: 2,
+                organization_id: "test_cert_body_id".to_string(),
+                name: "test_cert_body_name".to_string(),
+                organization_type: OrganizationTypeEnum::CertifyingBody,
+            };
+            diesel::insert_into(organizations::table)
+                .values(cert_body)
+                .execute(&conn)
+                .unwrap();
+            let standard = NewStandard {
+                start_block_num: 1,
+                end_block_num: 2,
+                standard_id: "test_standard_id".to_string(),
+                organization_id: "test_standards_body_id".to_string(),
+                name: "test_standard_name".to_string(),
+            };
+            diesel::insert_into(standards::table)
+                .values(standard)
+                .execute(&conn)
+                .unwrap();
+
+            let assertion = NewAssertion {
+                start_block_num: 1,
+                end_block_num: 2,
+                assertion_id: "test_assertion_id".to_string(),
+                assertor_pub_key: "test_key".to_string(),
+                assertion_type: AssertionTypeEnum::Certificate,
+                object_id: "test_cert_id".to_string(),
+                data_id: None,
+            };
+            diesel::insert_into(assertions::table)
+                .values(assertion)
+                .execute(&conn)
+                .unwrap();
+
+            let response = list_certificates(DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                    "data": [{
+                        "assertion_id": "test_assertion_id".to_string(),
+                        "id": "test_cert_id".to_string(),
+                        "certifying_body_id": "test_cert_body_id".to_string(),
+                        "certifying_body": "test_cert_body_name".to_string(),
+                        "factory_id": "test_factory_id".to_string(),
+                        "factory_name": "test_factory_name".to_string(),
+                        "standard_id": "test_standard_id".to_string(),
+                        "standard_name": "test_standard_name".to_string(),
+                        "standard_version": "test_standard_version".to_string(),
+                        "valid_from": 1 as i64,
+                        "valid_to": 2 as i64,
+                    }],
+                    "head": 1 as i64,
+                    "link": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                    "paging": {
+                        "first": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "last": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "limit": 100 as i64,
+                        "next": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "offset": 0 as i64,
+                        "prev": "/api/certificates?head=1&limit=100&offset=0".to_string(),
+                        "total": 1 as i64,
+                    }
+                })
+            );
+        })
+    }
 }

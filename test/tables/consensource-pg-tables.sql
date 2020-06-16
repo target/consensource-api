@@ -4,7 +4,7 @@
 CREATE TYPE Role AS ENUM ('ADMIN', 'TRANSACTOR', 'UNSET_ROLE');
 CREATE TYPE OrganizationType AS ENUM ('STANDARDS_BODY', 'CERTIFYING_BODY', 'FACTORY', 'UNSET_TYPE');
 CREATE TYPE RequestStatus AS ENUM ('OPEN', 'IN_PROGRESS', 'CLOSED', 'CERTIFIED', 'UNSET_STATUS');
-
+CREATE TYPE AssertionType AS ENUM ('STANDARD', 'CERTIFICATE', 'FACTORY', 'UNSET_TYPE');
 
 -- Create tables
 
@@ -154,6 +154,19 @@ CREATE TABLE IF NOT EXISTS requests (
   request_date                BIGINT         NOT NULL
 ) INHERITS (chain_record);
 
+CREATE TABLE IF NOT EXISTS assertions (
+  id                          BIGSERIAL      PRIMARY KEY,
+  assertion_id                VARCHAR        NOT NULL,
+  assertor_pub_key            VARCHAR        NOT NULL,
+  assertion_type              AssertionType  NOT NULL,
+  object_id                   VARCHAR        NOT NULL,
+  data_id                     VARCHAR
+) INHERITS (chain_record);
+
+CREATE INDEX IF NOT EXISTS assertions_id_index ON assertions (assertion_id);
+CREATE INDEX IF NOT EXISTS assertions_object_id_index ON assertions (object_id);
+CREATE INDEX IF NOT EXISTS assertions_block_index ON assertions (end_block_num);
+
 CREATE TABLE IF NOT EXISTS retailer_factories (
   id                          BIGSERIAL      PRIMARY KEY,
   factory_id                  VARCHAR,
@@ -167,4 +180,3 @@ CREATE TABLE IF NOT EXISTS retailer_factories (
   street_line_1               VARCHAR,
   street_line_2               VARCHAR
 )
-
