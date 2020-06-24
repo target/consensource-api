@@ -80,15 +80,15 @@ fn main() {
      "increase output verbosity")
     (@arg connect: default_value("tcp://localhost:4004") -C --connect +takes_value
      "connection endpoint for validator")
-    (@arg dbname: default_value("cert-registry") --dbname +takes_value
+    (@arg dbname: default_value("consensourcedb") --dbname +takes_value
        "the name of the database")
     (@arg dbhost: default_value("localhost") --dbhost +takes_value
         "the host of the database")
     (@arg dbport: default_value("5432") --dbport +takes_value
         "the port of the database")
-    (@arg dbuser: default_value("cert-registry") --dbuser +takes_value
+    (@arg dbuser: default_value("consensourcedb") --dbuser +takes_value
         "the authorized user of the database")
-    (@arg dbpass: default_value("cert-registry") --dbpass +takes_value
+    (@arg dbpass: default_value("consensourcedb") --dbpass +takes_value
         "the authorized user's password for database access")
     )
     .get_matches();
