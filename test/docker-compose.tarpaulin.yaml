@@ -67,6 +67,6 @@ services:
           # This method works with sending coverage data from a container on a travis-ci VM
           cargo tarpaulin --ignore-tests --coveralls $COVERALLS_TOKEN --report-uri https://coveralls.io/api/v1/jobs -- --nocapture --test-threads=1
         else
-          cargo tarpaulin --ignore-tests -- --nocapture --test-threads=1
+          cargo tarpaulin -v --ignore-tests -- --nocapture --test-threads=1
         fi;
       "

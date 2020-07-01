@@ -23,6 +23,10 @@ use route_handlers::prom::increment_http_req;
 pub struct FactoryParams {
     name: Option<String>,
     address: Option<String>,
+    city: Option<String>,
+    state_province: Option<String>,
+    country: Option<String>,
+    postal_code: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
     head: Option<i64>,
@@ -185,6 +189,70 @@ fn query_factories(
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
         count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
+    }
+
+    if let Some(city) = params.city {
+        let org_ids: Vec<String> = addresses::table
+            .select(ADDRESS_COLUMNS)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(addresses::city.eq(city.to_string()))
+            .load::<Address>(&*conn)?
+            .iter()
+            .map(|address| address.organization_id.to_string())
+            .collect::<Vec<String>>();
+
+        factories_query =
+            factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+    }
+
+    if let Some(state_province) = params.state_province {
+        let org_ids: Vec<String> = addresses::table
+            .select(ADDRESS_COLUMNS)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(addresses::state_province.eq(state_province.to_string()))
+            .load::<Address>(&*conn)?
+            .iter()
+            .map(|address| address.organization_id.to_string())
+            .collect::<Vec<String>>();
+
+        factories_query =
+            factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+    }
+
+    if let Some(country) = params.country {
+        let org_ids: Vec<String> = addresses::table
+            .select(ADDRESS_COLUMNS)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(addresses::country.eq(country.to_string()))
+            .load::<Address>(&*conn)?
+            .iter()
+            .map(|address| address.organization_id.to_string())
+            .collect::<Vec<String>>();
+
+        factories_query =
+            factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+    }
+
+    if let Some(postal_code) = params.postal_code {
+        let org_ids: Vec<String> = addresses::table
+            .select(ADDRESS_COLUMNS)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(addresses::postal_code.eq(postal_code.to_string()))
+            .load::<Address>(&*conn)?
+            .iter()
+            .map(|address| address.organization_id.to_string())
+            .collect::<Vec<String>>();
+
+        factories_query =
+            factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
     }
 
     let total_count = count_query
@@ -396,61 +464,10 @@ mod tests {
     /// when the factory exists with the given `org_id`
     fn test_factory_fetch_valid_id_success() {
         run_test(|| {
-            let conn = get_connection_pool();
+            let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
 
-            let factory = NewOrganization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_factory_name".to_string(),
-                organization_type: OrganizationTypeEnum::Factory,
-            };
-            diesel::insert_into(organizations::table)
-                .values(factory)
-                .execute(&conn)
-                .unwrap();
-
-            let auth = NewAuthorization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                public_key: "test_key".to_string(),
-                role: RoleEnum::Admin,
-            };
-            diesel::insert_into(authorizations::table)
-                .values(auth)
-                .execute(&conn)
-                .unwrap();
-
-            let address = NewAddress {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                street_line_1: "test_street_line_1".to_string(),
-                street_line_2: None,
-                city: "test_city".to_string(),
-                state_province: Some("test_province".to_string()),
-                country: "test_country".to_string(),
-                postal_code: Some("test_code".to_string()),
-            };
-            diesel::insert_into(addresses::table)
-                .values(address)
-                .execute(&conn)
-                .unwrap();
-
-            let contact = NewContact {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_contact".to_string(),
-                phone_number: "test_phone".to_string(),
-                language_code: "en".to_string(),
-            };
-            diesel::insert_into(contacts::table)
-                .values(contact)
-                .execute(&conn)
-                .unwrap();
+            conn = create_test_factory("test_factory", 1, conn);
             let response = fetch_factory("test_factory_id".to_string(), DbConn(conn));
 
             assert_eq!(
@@ -460,20 +477,20 @@ mod tests {
                     "id": "test_factory_id".to_string(),
                     "name": "test_factory_name".to_string(),
                     "contacts": [{
-                        "name": "test_contact".to_string(),
+                        "name": "test_factory_contact".to_string(),
                         "language_code": "en".to_string(),
-                        "phone_number": "test_phone".to_string(),
+                        "phone_number": "test_factory_phone".to_string(),
                     }],
                     "authorizations": [{
-                        "public_key": "test_key".to_string(),
+                        "public_key": "test_factory_key".to_string(),
                         "role": "Admin".to_string(),
                     }],
                     "address": {
-                        "street_line_1": "test_street_line_1".to_string(),
-                        "city": "test_city".to_string(),
-                        "state_province": "test_province".to_string(),
-                        "country": "test_country".to_string(),
-                        "postal_code": "test_code".to_string(),
+                        "street_line_1": "test_factory_street_line_1".to_string(),
+                        "city": "test_factory_city".to_string(),
+                        "state_province": "test_factory_province".to_string(),
+                        "country": "test_factory_country".to_string(),
+                        "postal_code": "test_factory_code".to_string(),
                     },
                     "organization_type": "Factory".to_string(),
                 },
@@ -489,75 +506,11 @@ mod tests {
     /// when the factory exists with the given `org_id` and `assertion_id`
     fn test_factory_fetch_valid_id_with_assertion_success() {
         run_test(|| {
-            let conn = get_connection_pool();
+            let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
 
-            let factory = NewOrganization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_factory_name".to_string(),
-                organization_type: OrganizationTypeEnum::Factory,
-            };
-            diesel::insert_into(organizations::table)
-                .values(factory)
-                .execute(&conn)
-                .unwrap();
+            conn = create_test_factory_with_assertion("test_factory", "test_assertion", 1, conn);
 
-            let auth = NewAuthorization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                public_key: "test_key".to_string(),
-                role: RoleEnum::Admin,
-            };
-            diesel::insert_into(authorizations::table)
-                .values(auth)
-                .execute(&conn)
-                .unwrap();
-
-            let address = NewAddress {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                street_line_1: "test_street_line_1".to_string(),
-                street_line_2: None,
-                city: "test_city".to_string(),
-                state_province: Some("test_province".to_string()),
-                country: "test_country".to_string(),
-                postal_code: Some("test_code".to_string()),
-            };
-            diesel::insert_into(addresses::table)
-                .values(address)
-                .execute(&conn)
-                .unwrap();
-
-            let contact = NewContact {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_contact".to_string(),
-                phone_number: "test_phone".to_string(),
-                language_code: "en".to_string(),
-            };
-            diesel::insert_into(contacts::table)
-                .values(contact)
-                .execute(&conn)
-                .unwrap();
-
-            let assertion = NewAssertion {
-                start_block_num: 1,
-                end_block_num: 2,
-                assertion_id: "test_assertion_id".to_string(),
-                assertor_pub_key: "test_key".to_string(),
-                assertion_type: AssertionTypeEnum::Factory,
-                object_id: "test_factory_id".to_string(),
-                data_id: None,
-            };
-            diesel::insert_into(assertions::table)
-                .values(assertion)
-                .execute(&conn)
-                .unwrap();
             let response = fetch_factory("test_factory_id".to_string(), DbConn(conn));
 
             assert_eq!(
@@ -567,20 +520,20 @@ mod tests {
                     "id": "test_factory_id".to_string(),
                     "name": "test_factory_name".to_string(),
                     "contacts": [{
-                        "name": "test_contact".to_string(),
+                        "name": "test_factory_contact".to_string(),
                         "language_code": "en".to_string(),
-                        "phone_number": "test_phone".to_string(),
+                        "phone_number": "test_factory_phone".to_string(),
                     }],
                     "authorizations": [{
-                        "public_key": "test_key".to_string(),
+                        "public_key": "test_factory_key".to_string(),
                         "role": "Admin".to_string(),
                     }],
                     "address": {
-                        "street_line_1": "test_street_line_1".to_string(),
-                        "city": "test_city".to_string(),
-                        "state_province": "test_province".to_string(),
-                        "country": "test_country".to_string(),
-                        "postal_code": "test_code".to_string(),
+                        "street_line_1": "test_factory_street_line_1".to_string(),
+                        "city": "test_factory_city".to_string(),
+                        "state_province": "test_factory_province".to_string(),
+                        "country": "test_factory_country".to_string(),
+                        "postal_code": "test_factory_code".to_string(),
                     },
                     "organization_type": "Factory".to_string(),
                     "assertion_id": "test_assertion_id".to_string(),
@@ -597,60 +550,10 @@ mod tests {
     /// factories in an array when the DB is populated
     fn test_factories_list_endpoint() {
         run_test(|| {
-            let conn = get_connection_pool();
+            let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
 
-            let factory = NewOrganization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_factory_name".to_string(),
-                organization_type: OrganizationTypeEnum::Factory,
-            };
-            diesel::insert_into(organizations::table)
-                .values(factory)
-                .execute(&conn)
-                .unwrap();
-
-            let auth = NewAuthorization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                public_key: "test_key".to_string(),
-                role: RoleEnum::Admin,
-            };
-            diesel::insert_into(authorizations::table)
-                .values(auth)
-                .execute(&conn)
-                .unwrap();
-
-            let address = NewAddress {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                street_line_1: "test_street_line_1".to_string(),
-                street_line_2: None,
-                city: "test_city".to_string(),
-                state_province: Some("test_province".to_string()),
-                country: "test_country".to_string(),
-                postal_code: Some("test_code".to_string()),
-            };
-            diesel::insert_into(addresses::table)
-                .values(address)
-                .execute(&conn)
-                .unwrap();
-            let contact = NewContact {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_contact".to_string(),
-                phone_number: "test_phone".to_string(),
-                language_code: "en".to_string(),
-            };
-            diesel::insert_into(contacts::table)
-                .values(contact)
-                .execute(&conn)
-                .unwrap();
+            conn = create_test_factory("test_factory", 1, conn);
             let response = list_factories(DbConn(conn));
 
             assert_eq!(
@@ -660,20 +563,20 @@ mod tests {
                     "id": "test_factory_id".to_string(),
                     "name": "test_factory_name".to_string(),
                     "contacts": [{
-                        "name": "test_contact".to_string(),
+                        "name": "test_factory_contact".to_string(),
                         "language_code": "en".to_string(),
-                        "phone_number": "test_phone".to_string(),
+                        "phone_number": "test_factory_phone".to_string(),
                     }],
                     "authorizations": [{
-                        "public_key": "test_key".to_string(),
+                        "public_key": "test_factory_key".to_string(),
                         "role": "Admin".to_string(),
                     }],
                     "address": {
-                        "street_line_1": "test_street_line_1".to_string(),
-                        "city": "test_city".to_string(),
-                        "state_province": "test_province".to_string(),
-                        "country": "test_country".to_string(),
-                        "postal_code": "test_code".to_string(),
+                        "street_line_1": "test_factory_street_line_1".to_string(),
+                        "city": "test_factory_city".to_string(),
+                        "state_province": "test_factory_province".to_string(),
+                        "country": "test_factory_country".to_string(),
+                        "postal_code": "test_factory_code".to_string(),
                     },
                     "organization_type": "Factory".to_string(),
                 }],
@@ -694,9 +597,9 @@ mod tests {
     }
 
     #[test]
-    /// Test that a GET to `/api/factories?address=test_factory2_name` returns an `Ok` response
+    /// Test that a GET to `/api/factories?name=test_factory2_name` returns an `Ok` response
     /// and sends back factory 2 in the json response body
-    fn test_factories_list_with_address_search_endpoint() {
+    fn test_factories_list_with_params_endpoint() {
         run_test(|| {
             let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
@@ -705,8 +608,12 @@ mod tests {
             conn = create_test_factory("test_factory2", 2, conn);
 
             let factory_params = FactoryParams {
-                name: None,
+                name: Some(String::from("test_factory2_name")),
                 address: Some(String::from("test_factory2")),
+                city: None,
+                state_province: None,
+                country: None,
+                postal_code: None,
                 limit: Some(100 as i64),
                 offset: Some(0 as i64),
                 head: Some(2 as i64),
@@ -739,14 +646,14 @@ mod tests {
                     "organization_type": "Factory".to_string(),
                 }],
                 "head": 2 as i64, // 2 factories
-                "link": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                "link": "/api/factories?name=test_factory2_name&head=2&limit=100&offset=0".to_string(),
                 "paging": {
-                    "first": "/api/factories?head=2&limit=100&offset=0".to_string(),
-                    "last": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "first": "/api/factories?name=test_factory2_name&head=2&limit=100&offset=0".to_string(),
+                    "last": "/api/factories?name=test_factory2_name&head=2&limit=100&offset=0".to_string(),
                     "limit": 100 as i64,
-                    "next": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "next": "/api/factories?name=test_factory2_name&head=2&limit=100&offset=0".to_string(),
                     "offset": 0 as i64,
-                    "prev": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "prev": "/api/factories?name=test_factory2_name&head=2&limit=100&offset=0".to_string(),
                     "total": 1 as i64,
                 }
                 })
@@ -759,74 +666,10 @@ mod tests {
     /// factories with assertions included in an array when the DB is populated
     fn test_factories_list_endpoint_with_assertion() {
         run_test(|| {
-            let conn = get_connection_pool();
+            let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
 
-            let factory = NewOrganization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_factory_name".to_string(),
-                organization_type: OrganizationTypeEnum::Factory,
-            };
-            diesel::insert_into(organizations::table)
-                .values(factory)
-                .execute(&conn)
-                .unwrap();
-
-            let auth = NewAuthorization {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                public_key: "test_key".to_string(),
-                role: RoleEnum::Admin,
-            };
-            diesel::insert_into(authorizations::table)
-                .values(auth)
-                .execute(&conn)
-                .unwrap();
-
-            let address = NewAddress {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                street_line_1: "test_street_line_1".to_string(),
-                street_line_2: None,
-                city: "test_city".to_string(),
-                state_province: Some("test_province".to_string()),
-                country: "test_country".to_string(),
-                postal_code: Some("test_code".to_string()),
-            };
-            diesel::insert_into(addresses::table)
-                .values(address)
-                .execute(&conn)
-                .unwrap();
-
-            let contact = NewContact {
-                start_block_num: 1,
-                end_block_num: 2,
-                organization_id: "test_factory_id".to_string(),
-                name: "test_contact".to_string(),
-                phone_number: "test_phone".to_string(),
-                language_code: "en".to_string(),
-            };
-            diesel::insert_into(contacts::table)
-                .values(contact)
-                .execute(&conn)
-                .unwrap();
-            let assertion = NewAssertion {
-                start_block_num: 1,
-                end_block_num: 2,
-                assertion_id: "test_assertion_id".to_string(),
-                assertor_pub_key: "test_key".to_string(),
-                assertion_type: AssertionTypeEnum::Factory,
-                object_id: "test_factory_id".to_string(),
-                data_id: None,
-            };
-            diesel::insert_into(assertions::table)
-                .values(assertion)
-                .execute(&conn)
-                .unwrap();
+            conn = create_test_factory_with_assertion("test_factory", "test_assertion", 1, conn);
             let response = list_factories(DbConn(conn));
 
             assert_eq!(
@@ -836,20 +679,20 @@ mod tests {
                     "id": "test_factory_id".to_string(),
                     "name": "test_factory_name".to_string(),
                     "contacts": [{
-                        "name": "test_contact".to_string(),
+                        "name": "test_factory_contact".to_string(),
                         "language_code": "en".to_string(),
-                        "phone_number": "test_phone".to_string(),
+                        "phone_number": "test_factory_phone".to_string(),
                     }],
                     "authorizations": [{
-                        "public_key": "test_key".to_string(),
+                        "public_key": "test_factory_key".to_string(),
                         "role": "Admin".to_string(),
                     }],
                     "address": {
-                        "street_line_1": "test_street_line_1".to_string(),
-                        "city": "test_city".to_string(),
-                        "state_province": "test_province".to_string(),
-                        "country": "test_country".to_string(),
-                        "postal_code": "test_code".to_string(),
+                        "street_line_1": "test_factory_street_line_1".to_string(),
+                        "city": "test_factory_city".to_string(),
+                        "state_province": "test_factory_province".to_string(),
+                        "country": "test_factory_country".to_string(),
+                        "postal_code": "test_factory_code".to_string(),
                     },
                     "organization_type": "Factory".to_string(),
                     "assertion_id": "test_assertion_id".to_string(),
@@ -929,6 +772,30 @@ mod tests {
             .execute(&conn)
             .unwrap();
 
+        conn
+    }
+
+    // helper function to create and insert a test factory and assertion in the database
+    fn create_test_factory_with_assertion(
+        factory_name: &str,
+        assertion_name: &str,
+        start_block_number: i64,
+        mut conn: PooledConnection<ConnectionManager<PgConnection>>,
+    ) -> PooledConnection<ConnectionManager<PgConnection>> {
+        conn = create_test_factory(factory_name, start_block_number, conn);
+        let assertion = NewAssertion {
+            start_block_num: 1,
+            end_block_num: 2,
+            assertion_id: String::from(format!("{}_id", assertion_name)),
+            assertor_pub_key: String::from(format!("{}_key", assertion_name)),
+            assertion_type: AssertionTypeEnum::Factory,
+            object_id: String::from(format!("{}_id", factory_name)),
+            data_id: None,
+        };
+        diesel::insert_into(assertions::table)
+            .values(assertion)
+            .execute(&conn)
+            .unwrap();
         conn
     }
 }
