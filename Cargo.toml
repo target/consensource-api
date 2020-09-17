@@ -11,6 +11,7 @@ clap = "2"
 common = { git = "https://github.com/target/consensource-common.git", branch = "master" }
 database = { git = "https://github.com/target/consensource-database.git", branch = "master" }
 diesel = { version = "1.0.0", features = ["postgres", "r2d2"] }
+diesel_full_text_search = "1.0.1"
 protobuf = "2.8.1"
 reqwest = "0.9.22"
 rocket = "0.4.2"

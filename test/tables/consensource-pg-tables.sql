@@ -99,11 +99,18 @@ CREATE TABLE IF NOT EXISTS addresses (
   city               VARCHAR     NOT NULL,
   state_province     VARCHAR,
   country            VARCHAR     NOT NULL,
-  postal_code        VARCHAR
+  postal_code        VARCHAR,
+  text_searchable_address_col   TSVECTOR
 ) INHERITS (chain_record);
 
 CREATE INDEX IF NOT EXISTS addresses_organization_id_index ON addresses (organization_id);
 CREATE INDEX IF NOT EXISTS addresses_block_index ON addresses (end_block_num);
+CREATE INDEX IF NOT EXISTS address_text_search ON addresses USING GIN (text_searchable_address_col);
+
+CREATE TRIGGER tsvectorupdateaddresses BEFORE INSERT OR UPDATE
+ON addresses FOR EACH ROW EXECUTE PROCEDURE
+tsvector_update_trigger(text_searchable_address_col, 'pg_catalog.english',
+  street_line_1, street_line_2, city, state_province, country, postal_code);
 
 CREATE TABLE IF NOT EXISTS certificate_data (
   id                         BIGSERIAL   PRIMARY KEY,

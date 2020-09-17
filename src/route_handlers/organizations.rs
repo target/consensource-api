@@ -2,7 +2,7 @@ use database::DbConn;
 use database_manager::custom_types::OrganizationTypeEnum;
 use database_manager::custom_types::RoleEnum;
 use database_manager::models::{
-    Address, Authorization, Certificate, Contact, Organization, Standard,
+    Address, Authorization, Certificate, Contact, Organization, Standard, ADDRESS_COLUMNS,
 };
 use database_manager::tables_schema::{
     addresses, assertions, authorizations, contacts, organizations,
@@ -377,6 +377,7 @@ pub fn fetch_organization_with_params(
             let data = match org.organization_type {
                 OrganizationTypeEnum::Factory => {
                     let address_results = addresses::table
+                        .select(ADDRESS_COLUMNS)
                         .filter(addresses::organization_id.eq(organization_id.clone()))
                         .filter(addresses::start_block_num.le(head_block_num))
                         .filter(addresses::end_block_num.gt(head_block_num))
@@ -537,6 +538,7 @@ pub fn list_organizations_with_params(
         });
 
     let mut address_results: HashMap<String, Address> = addresses::table
+        .select(ADDRESS_COLUMNS)
         .filter(addresses::start_block_num.le(head_block_num))
         .filter(addresses::end_block_num.gt(head_block_num))
         .filter(

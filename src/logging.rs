@@ -62,6 +62,7 @@ fn get_action_from_transaction(transaction: &Transaction) -> String {
             "accredit certifying body".to_string()
         }
         payload::CertificateRegistryPayload_Action::ASSERT_ACTION => "assertion".to_string(),
+        payload::CertificateRegistryPayload_Action::TRANSFER_ASSERTION => "transfer".to_string(),
     }
 }
 

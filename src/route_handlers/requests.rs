@@ -2,6 +2,7 @@ use database::DbConn;
 use database_manager::custom_types::RequestStatusEnum;
 use database_manager::models::{
     Address, Authorization, Contact, Organization, Request, Standard, StandardVersion,
+    ADDRESS_COLUMNS,
 };
 use database_manager::tables_schema::{
     addresses, authorizations, contacts, organizations, requests, standard_versions, standards,
@@ -335,6 +336,7 @@ fn fetch_expansions(
         });
 
     let address_results: HashMap<String, Address> = addresses::table
+        .select(ADDRESS_COLUMNS)
         .filter(addresses::start_block_num.le(head_block_num))
         .filter(addresses::end_block_num.gt(head_block_num))
         .filter(addresses::organization_id.eq_any(factory_ids))

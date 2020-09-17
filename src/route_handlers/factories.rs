@@ -3,12 +3,14 @@ use std::collections::HashMap;
 use database::DbConn;
 use database_manager::custom_types::OrganizationTypeEnum;
 use database_manager::models::{
-    Address, Authorization, Certificate, Contact, Organization, Standard,
+    Address, Authorization, Certificate, Contact, Organization, Standard, ADDRESS_COLUMNS,
 };
+use database_manager::tables_schema::addresses::dsl::text_searchable_address_col;
 use database_manager::tables_schema::{
     addresses, assertions, authorizations, certificates, contacts, organizations, standards,
 };
 use diesel::prelude::*;
+use diesel_full_text_search::{plainto_tsquery, TsVectorExtensions};
 use errors::ApiError;
 use paging::*;
 use rocket::http::uri::Uri;
@@ -20,6 +22,7 @@ use route_handlers::prom::increment_http_req;
 #[derive(Default, FromForm, Clone)]
 pub struct FactoryParams {
     name: Option<String>,
+    address: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
     head: Option<i64>,
@@ -74,6 +77,7 @@ pub fn fetch_factory_with_head_param(
                 .map_err(|err| ApiError::InternalError(err.to_string()))?;
 
             let address_results = addresses::table
+                .select(ADDRESS_COLUMNS)
                 .filter(addresses::organization_id.eq(organization_id.to_string()))
                 .filter(addresses::start_block_num.le(head_block_num))
                 .filter(addresses::end_block_num.gt(head_block_num))
@@ -167,6 +171,21 @@ fn query_factories(
         factories_query = factories_query.filter(organizations::name.eq(name.to_string()));
         count_query = count_query.filter(organizations::name.eq(name));
     }
+    // address is used to filter with full text search
+    if let Some(address) = params.address {
+        let org_ids: Vec<String> = addresses::table
+            .select(ADDRESS_COLUMNS)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(text_searchable_address_col.matches(plainto_tsquery(address)))
+            .load::<Address>(&*conn)?
+            .iter()
+            .map(|address| address.organization_id.to_string())
+            .collect::<Vec<String>>();
+        factories_query =
+            factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
+    }
 
     let total_count = count_query
         .count()
@@ -228,6 +247,7 @@ fn query_factories(
         .map(|org| org.organization_id.to_string())
         .collect();
     let mut address_results: HashMap<String, Address> = addresses::table
+        .select(ADDRESS_COLUMNS)
         .filter(addresses::start_block_num.le(head_block_num))
         .filter(addresses::end_block_num.gt(head_block_num))
         .filter(addresses::organization_id.eq_any(&factory_ids))
@@ -367,6 +387,8 @@ mod tests {
     use database_manager::models::{
         NewAddress, NewAssertion, NewAuthorization, NewContact, NewOrganization,
     };
+    use diesel::pg::PgConnection;
+    use diesel::r2d2::{ConnectionManager, PooledConnection};
     use route_handlers::tests::{get_connection_pool, run_test};
 
     #[test]
@@ -672,6 +694,67 @@ mod tests {
     }
 
     #[test]
+    /// Test that a GET to `/api/factories?address=test_factory2_name` returns an `Ok` response
+    /// and sends back factory 2 in the json response body
+    fn test_factories_list_with_address_search_endpoint() {
+        run_test(|| {
+            let mut conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            conn = create_test_factory("test_factory1", 1, conn);
+            conn = create_test_factory("test_factory2", 2, conn);
+
+            let factory_params = FactoryParams {
+                name: None,
+                address: Some(String::from("test_factory2")),
+                limit: Some(100 as i64),
+                offset: Some(0 as i64),
+                head: Some(2 as i64),
+                expand: None,
+            };
+            let response = list_factories_params(Some(Form(factory_params)), DbConn(conn));
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                "data": [{
+                    "address": {
+                        "city": "test_factory2_city".to_string(),
+                        "country": "test_factory2_country".to_string(),
+                        "postal_code": "test_factory2_code".to_string(),
+                        "state_province": "test_factory2_province".to_string(),
+                        "street_line_1": "test_factory2_street_line_1".to_string(),
+                    },
+                    "authorizations": [{
+                        "public_key": "test_factory2_key".to_string(),
+                        "role": "Admin".to_string(),
+                    }],
+                    "contacts": [{
+                        "language_code": "en".to_string(),
+                        "name": "test_factory2_contact".to_string(),
+                        "phone_number": "test_factory2_phone".to_string(),
+                    }],
+                    "id": "test_factory2_id".to_string(),
+                    "name": "test_factory2_name".to_string(),
+                    "organization_type": "Factory".to_string(),
+                }],
+                "head": 2 as i64, // 2 factories
+                "link": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                "paging": {
+                    "first": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "last": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "limit": 100 as i64,
+                    "next": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "offset": 0 as i64,
+                    "prev": "/api/factories?head=2&limit=100&offset=0".to_string(),
+                    "total": 1 as i64,
+                }
+                })
+            );
+        })
+    }
+
+    #[test]
     /// Test that a GET to `/api/factories` returns an `Ok` response and sends back all
     /// factories with assertions included in an array when the DB is populated
     fn test_factories_list_endpoint_with_assertion() {
@@ -785,5 +868,67 @@ mod tests {
                 })
             );
         })
+    }
+
+    // helper function to create and insert a test factory in the database
+    fn create_test_factory(
+        factory_name: &str,
+        start_block_number: i64,
+        conn: PooledConnection<ConnectionManager<PgConnection>>,
+    ) -> PooledConnection<ConnectionManager<PgConnection>> {
+        let factory = NewOrganization {
+            start_block_num: start_block_number,
+            end_block_num: start_block_number + 1,
+            organization_id: String::from(format!("{}_id", factory_name)),
+            name: String::from(format!("{}_name", factory_name)),
+            organization_type: OrganizationTypeEnum::Factory,
+        };
+        diesel::insert_into(organizations::table)
+            .values(factory)
+            .execute(&conn)
+            .unwrap();
+
+        let auth = NewAuthorization {
+            start_block_num: start_block_number,
+            end_block_num: start_block_number + 1,
+            organization_id: String::from(format!("{}_id", factory_name)),
+            public_key: String::from(format!("{}_key", factory_name)),
+            role: RoleEnum::Admin,
+        };
+        diesel::insert_into(authorizations::table)
+            .values(auth)
+            .execute(&conn)
+            .unwrap();
+
+        let address = NewAddress {
+            start_block_num: start_block_number,
+            end_block_num: start_block_number + 1,
+            organization_id: String::from(format!("{}_id", factory_name)),
+            street_line_1: String::from(format!("{}_street_line_1", factory_name)),
+            street_line_2: None,
+            city: String::from(format!("{}_city", factory_name)),
+            state_province: Some(String::from(format!("{}_province", factory_name))),
+            country: String::from(format!("{}_country", factory_name)),
+            postal_code: Some(String::from(format!("{}_code", factory_name))),
+        };
+        diesel::insert_into(addresses::table)
+            .values(address)
+            .execute(&conn)
+            .unwrap();
+
+        let contact = NewContact {
+            start_block_num: start_block_number,
+            end_block_num: start_block_number + 1,
+            organization_id: String::from(format!("{}_id", factory_name)),
+            name: String::from(format!("{}_contact", factory_name)),
+            phone_number: String::from(format!("{}_phone", factory_name)),
+            language_code: "en".to_string(),
+        };
+        diesel::insert_into(contacts::table)
+            .values(contact)
+            .execute(&conn)
+            .unwrap();
+
+        conn
     }
 }
