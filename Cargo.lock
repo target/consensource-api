@@ -320,7 +320,7 @@ dependencies = [
 [[package]]
 name = "common"
 version = "0.1.0"
-source = "git+https://github.com/target/consensource-common.git?branch=master#b233a894a265b0ae2a2e56a6880d244085f57722"
+source = "git+https://github.com/target/consensource-common.git#b233a894a265b0ae2a2e56a6880d244085f57722"
 dependencies = [
  "glob 0.2.11",
  "protobuf",
@@ -504,7 +504,7 @@ dependencies = [
 [[package]]
 name = "database"
 version = "0.1.0"
-source = "git+https://github.com/target/consensource-database.git?branch=master#9f6452cac1afa39ef2f676384c7ebd6aa6df91f1"
+source = "git+https://github.com/target/consensource-database.git#9f6452cac1afa39ef2f676384c7ebd6aa6df91f1"
 dependencies = [
  "diesel",
  "diesel_full_text_search",

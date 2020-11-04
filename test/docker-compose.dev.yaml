@@ -19,9 +19,7 @@ services:
       - 5432
   
   test-rest-api:
-    # We don't use any tarpaulin packages from this image, but we
-    # do need some packages like `netcat` that are included
-    image: target/consensource-api:tarpaulin 
+    image: target/consensource-api:local 
     container_name: test-rest-api
     build:
       context: ../
@@ -43,17 +41,4 @@ services:
       PG_HOST: "test-postgres"
       PG_PORT: "5432"
       PG_DB_NAME: "consensource"
-    command: |
-      bash -c "
-        RETRIES=5
-        DB_PORT=5432
-
-        # Wait until Postgres is up to start the server
-        until netcat -q 1 test-postgres $$DB_PORT </dev/null || [ $$RETRIES -eq 0 ]; do
-          echo Waiting for Postgres server, $$((RETRIES--)) remaining attempts...
-          sleep 1
-        done
-
-        # Keep container from exiting while running tests
-        tail -f /dev/null
-      "
+    command: tail -f /dev/null # Keep container from exiting
