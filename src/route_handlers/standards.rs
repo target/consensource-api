@@ -160,16 +160,25 @@ pub fn list_standards_with_params(
         .map_err(|err| ApiError::InternalError(err.to_string()))?
         .into_iter()
         .fold(Vec::new(), |mut acc, (id, name, assertion_id)| {
-            acc.push(
-                [
-                    ("standard_id", id),
-                    ("standard_name", name),
-                    ("assertion_id", assertion_id.unwrap_or_default()),
-                ]
-                .iter()
-                .cloned()
-                .collect::<HashMap<&str, String>>(),
-            );
+            if assertion_id.is_some() {
+                acc.push(
+                    [
+                        ("standard_id", id),
+                        ("standard_name", name),
+                        ("assertion_id", assertion_id.unwrap()),
+                    ]
+                    .iter()
+                    .cloned()
+                    .collect::<HashMap<&str, String>>(),
+                );
+            } else {
+                acc.push(
+                    [("standard_id", id), ("standard_name", name)]
+                        .iter()
+                        .cloned()
+                        .collect::<HashMap<&str, String>>(),
+                );
+            }
             acc
         });
 
@@ -218,7 +227,6 @@ mod tests {
                     "data": [{
                         "standard_id": "test_standard_id".to_string(),
                         "standard_name": "test_standard_name".to_string(),
-                        "assertion_id": "".to_string(),
                     }],
                 })
             );
@@ -249,6 +257,7 @@ mod tests {
                 start_block_num: 1,
                 end_block_num: 2,
                 assertion_id: "test_assertion_id".to_string(),
+                address: "some_state_address".to_string(),
                 assertor_pub_key: "test_key".to_string(),
                 assertion_type: AssertionTypeEnum::Standard,
                 object_id: "test_standard_id".to_string(),

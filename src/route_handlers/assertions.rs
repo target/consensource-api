@@ -20,6 +20,7 @@ pub struct AssertionParams {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiAssertion {
     assertion_id: String,
+    address: String,
     assertor_pub_key: String,
     assertion_type: AssertionTypeEnum,
     object_id: String,
@@ -31,6 +32,7 @@ impl From<Assertion> for ApiAssertion {
     fn from(assertion: Assertion) -> Self {
         ApiAssertion {
             assertion_id: assertion.assertion_id.clone(),
+            address: assertion.address.clone(),
             assertor_pub_key: assertion.assertor_pub_key.clone(),
             assertion_type: assertion.assertion_type,
             object_id: assertion.object_id.clone(),
@@ -43,6 +45,7 @@ impl<'a> From<&'a Assertion> for ApiAssertion {
     fn from(assertion: &Assertion) -> Self {
         ApiAssertion {
             assertion_id: assertion.assertion_id.clone(),
+            address: assertion.address.clone(),
             assertor_pub_key: assertion.assertor_pub_key.clone(),
             assertion_type: assertion.assertion_type.clone(),
             object_id: assertion.object_id.clone(),
@@ -165,6 +168,7 @@ mod tests {
                 start_block_num: 1,
                 end_block_num: 2,
                 assertion_id: "test_assertion_id".to_string(),
+                address: "some_state_address".to_string(),
                 assertor_pub_key: "test_key".to_string(),
                 assertion_type: AssertionTypeEnum::Factory,
                 object_id: "test_object_id".to_string(),
@@ -181,6 +185,7 @@ mod tests {
                 json!({
                 "data": {
                     "assertion_id": "test_assertion_id".to_string(),
+                    "address": "some_state_address".to_string(),
                     "assertor_pub_key": "test_key".to_string(),
                     "assertion_type": "Factory".to_string(),
                     "object_id": "test_object_id".to_string(),
@@ -204,6 +209,7 @@ mod tests {
                 start_block_num: 1,
                 end_block_num: 2,
                 assertion_id: "test_assertion_id".to_string(),
+                address: "some_state_address".to_string(),
                 assertor_pub_key: "test_key".to_string(),
                 assertion_type: AssertionTypeEnum::Factory,
                 object_id: "test_object_id".to_string(),
@@ -221,6 +227,7 @@ mod tests {
                 json!({
                     "data": [{
                         "assertion_id": "test_assertion_id".to_string(),
+                        "address": "some_state_address".to_string(),
                         "assertor_pub_key": "test_key".to_string(),
                         "assertion_type": "Factory".to_string(),
                         "object_id": "test_object_id".to_string(),

@@ -234,7 +234,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     if let Some(state_province) = params.state_province {
@@ -247,7 +247,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     if let Some(country) = params.country {
@@ -260,7 +260,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     if let Some(postal_code) = params.postal_code {
@@ -273,7 +273,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     let total_count = count_query
@@ -858,6 +858,7 @@ mod tests {
             start_block_num: 1,
             end_block_num: std::i64::MAX,
             assertion_id: String::from(format!("{}_id", assertion_name)),
+            address: "some_state_address".to_string(),
             assertor_pub_key: String::from(format!("{}_key", assertion_name)),
             assertion_type: AssertionTypeEnum::Factory,
             object_id: String::from(format!("{}_id", factory_name)),
