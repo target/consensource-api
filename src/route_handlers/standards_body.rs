@@ -231,6 +231,7 @@ mod tests {
                 start_block_num: 1,
                 end_block_num: 2,
                 assertion_id: "test_assertion_id".to_string(),
+                address: "some_state_address".to_string(),
                 assertor_pub_key: "test_key".to_string(),
                 assertion_type: AssertionTypeEnum::Standard,
                 object_id: "test_standard_id".to_string(),

@@ -196,7 +196,7 @@ fn query_factories(
             .select(ADDRESS_COLUMNS)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::city.eq(city.to_string()))
+            .filter(addresses::city.eq(city))
             .load::<Address>(&*conn)?
             .iter()
             .map(|address| address.organization_id.to_string())
@@ -204,7 +204,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     if let Some(state_province) = params.state_province {
@@ -212,7 +212,7 @@ fn query_factories(
             .select(ADDRESS_COLUMNS)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::state_province.eq(state_province.to_string()))
+            .filter(addresses::state_province.eq(state_province))
             .load::<Address>(&*conn)?
             .iter()
             .map(|address| address.organization_id.to_string())
@@ -220,7 +220,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     if let Some(country) = params.country {
@@ -228,7 +228,7 @@ fn query_factories(
             .select(ADDRESS_COLUMNS)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::country.eq(country.to_string()))
+            .filter(addresses::country.eq(country))
             .load::<Address>(&*conn)?
             .iter()
             .map(|address| address.organization_id.to_string())
@@ -236,7 +236,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     if let Some(postal_code) = params.postal_code {
@@ -244,7 +244,7 @@ fn query_factories(
             .select(ADDRESS_COLUMNS)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::postal_code.eq(postal_code.to_string()))
+            .filter(addresses::postal_code.eq(postal_code))
             .load::<Address>(&*conn)?
             .iter()
             .map(|address| address.organization_id.to_string())
@@ -252,7 +252,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
     }
 
     let total_count = count_query
@@ -787,6 +787,7 @@ mod tests {
             start_block_num: 1,
             end_block_num: 2,
             assertion_id: String::from(format!("{}_id", assertion_name)),
+            address: "some_state_address".to_string(),
             assertor_pub_key: String::from(format!("{}_key", assertion_name)),
             assertion_type: AssertionTypeEnum::Factory,
             object_id: String::from(format!("{}_id", factory_name)),

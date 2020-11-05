@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS requests (
 
 CREATE TABLE IF NOT EXISTS assertions (
   id                          BIGSERIAL      PRIMARY KEY,
+  address                     VARCHAR        NOT NULL,
   assertion_id                VARCHAR        NOT NULL,
   assertor_pub_key            VARCHAR        NOT NULL,
   assertion_type              AssertionType  NOT NULL,
@@ -171,6 +172,7 @@ CREATE TABLE IF NOT EXISTS assertions (
 ) INHERITS (chain_record);
 
 CREATE INDEX IF NOT EXISTS assertions_id_index ON assertions (assertion_id);
+CREATE INDEX IF NOT EXISTS assertions_address_index ON assertions (address);
 CREATE INDEX IF NOT EXISTS assertions_object_id_index ON assertions (object_id);
 CREATE INDEX IF NOT EXISTS assertions_block_index ON assertions (end_block_num);
 
