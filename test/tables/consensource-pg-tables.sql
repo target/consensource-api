@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS organizations (
   organization_type          OrganizationType  NOT NULL
 ) INHERITS (chain_record);
 
+CREATE INDEX IF NOT EXISTS org_name_text_search ON organizations USING GIN (to_tsvector('english', name));
 CREATE INDEX IF NOT EXISTS organizations_organization_id_index ON organizations (organization_id);
 CREATE INDEX IF NOT EXISTS organizations_block_index ON organizations (end_block_num);
 
@@ -130,6 +131,7 @@ CREATE TABLE IF NOT EXISTS standards (
   name                       VARCHAR    NOT NULL
 ) INHERITS (chain_record);
 
+CREATE INDEX IF NOT EXISTS std_name_text_search ON standards USING GIN (to_tsvector('english', name));
 CREATE INDEX IF NOT EXISTS standards_id_index ON standards (standard_id);
 CREATE INDEX IF NOT EXISTS standards_block_index ON standards (end_block_num);
 
