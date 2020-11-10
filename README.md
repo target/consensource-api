@@ -1,4 +1,6 @@
-# ConsenSource REST API [![Build Status](https://travis-ci.org/target/consensource-api.svg?branch=master)](https://travis-ci.org/target/consensource-api) [![Coverage Status](https://img.shields.io/coveralls/github/target/consensource-api)](https://coveralls.io/github/target/consensource-api?branch=master)
+# ConsenSource REST API
+
+[![Build Status](https://travis-ci.org/target/consensource-api.svg?branch=master)](https://travis-ci.org/target/consensource-api) [![Coverage Status](https://img.shields.io/coveralls/github/target/consensource-api)](https://coveralls.io/github/target/consensource-api?branch=master)
 
 The ConsenSource REST API is a Rust server with endpoints for fetching data
 from [the ConsenSource database](https://github.com/target/consensource-database), and posting transactions/batches to [the ConsenSource processor](https://github.com/target/consensource-processor).
