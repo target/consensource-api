@@ -88,9 +88,4 @@ cargo build
 
 ### Run
 
-You'll need to run ConsenSource from the [consensource-compose
-repo](https://github.com/target/consensource-compose), a git submodules repo that 
-references all the components that make up ConsenSource.
-
-_NOTE: The consensource-compose repo is only for pulling changes and running the
-project as a whole, it is not for development_
+Please visit the [main ConsenSource repo](https://github.com/target/consensource) for instructions on how to run with other components, using either `docker-compose` or `kubernetes`.
