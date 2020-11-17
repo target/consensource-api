@@ -4,6 +4,9 @@ use rocket::http::Status;
 use rocket::request::{self, FromRequest};
 use rocket::{Outcome, Request, State};
 use std::ops::Deref;
+use trigram::similarity;
+
+const SIMILARITY_THRESHOLD: f32 = 0.2;
 
 pub type PgPool = Pool<ConnectionManager<PgConnection>>;
 
@@ -32,4 +35,14 @@ impl Deref for DbConn {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+pub fn get_similar_records(records: Vec<String>, value: String) -> Vec<String> {
+    records
+        .iter()
+        .filter(|record| {
+            similarity(&record.to_lowercase(), &value.to_lowercase()) >= SIMILARITY_THRESHOLD
+        })
+        .map(|record| record.into())
+        .collect()
 }

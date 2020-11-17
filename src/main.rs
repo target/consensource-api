@@ -12,6 +12,7 @@ extern crate common;
 extern crate database as database_manager;
 extern crate diesel;
 extern crate diesel_full_text_search;
+extern crate trigram;
 #[macro_use]
 extern crate rocket;
 #[macro_use]
