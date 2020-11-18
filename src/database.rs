@@ -46,3 +46,21 @@ pub fn get_similar_records(records: Vec<String>, value: String) -> Vec<String> {
         .map(|record| record.into())
         .collect()
 }
+
+pub fn get_similar_optional_records(records: Vec<Option<String>>, value: String) -> Vec<String> {
+    records
+        .iter()
+        .filter(|record| {
+            let r = record.clone();
+            let record_value = r.clone().unwrap();
+            if record_value == "".to_string() {
+                return false;
+            }
+            similarity(&record_value.to_lowercase(), &value.to_lowercase()) >= SIMILARITY_THRESHOLD
+        })
+        .map(|record| {
+            let r = record.clone();
+            r.unwrap()
+        })
+        .collect()
+}

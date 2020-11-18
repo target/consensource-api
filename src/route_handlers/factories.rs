@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use database::{get_similar_records, DbConn};
+use database::{get_similar_optional_records, get_similar_records, DbConn};
 use database_manager::custom_types::OrganizationTypeEnum;
 use database_manager::models::{
     Address, Authorization, Certificate, Contact, Organization, Standard, ADDRESS_COLUMNS,
@@ -247,11 +247,20 @@ fn query_factories(
     }
 
     if let Some(state_province) = params.state_province {
+        let similar_state_provinces: Vec<String> = get_similar_optional_records(
+            addresses::table
+                .select(addresses::state_province)
+                .filter(addresses::start_block_num.le(head_block_num))
+                .filter(addresses::end_block_num.gt(head_block_num))
+                .load::<Option<String>>(&*conn)?,
+            state_province,
+        );
+
         let org_ids = addresses::table
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::state_province.eq(state_province.to_string()))
+            .filter(addresses::state_province.eq_any(similar_state_provinces.clone()))
             .load::<String>(&*conn)?;
 
         factories_query =
