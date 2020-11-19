@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use database::DbConn;
+use database::{similarity, DbConn, SIMILARITY_THRESHOLD};
 use database_manager::custom_types::OrganizationTypeEnum;
 use database_manager::models::{
     Address, Authorization, Certificate, Contact, Organization, Standard, ADDRESS_COLUMNS,
@@ -229,7 +229,8 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::city.eq(city.to_string()))
+            .filter(similarity(addresses::city.nullable(), city).gt(SIMILARITY_THRESHOLD))
+            .order_by(addresses::city.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -242,7 +243,8 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::state_province.eq(state_province.to_string()))
+            .filter(similarity(addresses::state_province, state_province).gt(SIMILARITY_THRESHOLD))
+            .order_by(addresses::state_province.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -255,7 +257,8 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::country.eq(country.to_string()))
+            .filter(similarity(addresses::country.nullable(), country).gt(SIMILARITY_THRESHOLD))
+            .order_by(addresses::country.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -268,7 +271,10 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::postal_code.eq(postal_code.to_string()))
+            .filter(
+                similarity(addresses::postal_code.nullable(), postal_code).gt(SIMILARITY_THRESHOLD),
+            )
+            .order_by(addresses::postal_code.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
