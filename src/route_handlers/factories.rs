@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use database::DbConn;
+use database::{similarity, DbConn, SIMILARITY_THRESHOLD};
 use database_manager::custom_types::OrganizationTypeEnum;
 use database_manager::models::{
     Address, Authorization, Certificate, Contact, Organization, Standard, ADDRESS_COLUMNS,
@@ -229,7 +229,8 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::city.eq(city.to_string()))
+            .filter(similarity(addresses::city.nullable(), city).gt(SIMILARITY_THRESHOLD))
+            .order_by(addresses::city.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -242,7 +243,8 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::state_province.eq(state_province.to_string()))
+            .filter(similarity(addresses::state_province, state_province).gt(SIMILARITY_THRESHOLD))
+            .order_by(addresses::state_province.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -255,7 +257,8 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::country.eq(country.to_string()))
+            .filter(similarity(addresses::country.nullable(), country).gt(SIMILARITY_THRESHOLD))
+            .order_by(addresses::country.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -268,7 +271,10 @@ fn query_factories(
             .select(addresses::organization_id)
             .filter(addresses::start_block_num.le(head_block_num))
             .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(addresses::postal_code.eq(postal_code.to_string()))
+            .filter(
+                similarity(addresses::postal_code.nullable(), postal_code).gt(SIMILARITY_THRESHOLD),
+            )
+            .order_by(addresses::postal_code.desc())
             .load::<String>(&*conn)?;
 
         factories_query =
@@ -521,6 +527,154 @@ mod tests {
             let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
 
             assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?city=assertion` returns an `Ok` response
+    /// with a factory of similarity greater than 0.2
+    fn test_factories_list_with_similar_city_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_city_params = FACTORY_PARAMS_BASE.clone();
+            let factory_city = String::from(format!("{}_city_similar", FACTORY_NAME_BASE));
+            factory_city_params.city = Some(factory_city);
+
+            let res = list_factories_params(Some(Form(factory_city_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?city=assertion` returns an `Ok` response
+    /// with a factory of similarity less than 0.2
+    fn test_factories_list_with_dissimilar_city_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_city_params = FACTORY_PARAMS_BASE.clone();
+            let factory_city = String::from("dissimilar_city");
+            factory_city_params.city = Some(factory_city);
+
+            let res = list_factories_params(Some(Form(factory_city_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 0);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?state_province=assertion` returns an `Ok` response
+    /// with a factory of similarity greater than 0.2
+    fn test_factories_list_with_similar_state_province_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_state_province_params = FACTORY_PARAMS_BASE.clone();
+            let factory_state_province =
+                String::from(format!("{}_state_province_similar", FACTORY_NAME_BASE));
+            factory_state_province_params.state_province = Some(factory_state_province);
+
+            let res =
+                list_factories_params(Some(Form(factory_state_province_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?state_province=assertion` returns an `Ok` response
+    /// with a factory of similarity less than 0.2
+    fn test_factories_list_with_dissimilar_state_province_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_state_province_params = FACTORY_PARAMS_BASE.clone();
+            let factory_state_province = String::from("dissimilar_sp");
+            factory_state_province_params.state_province = Some(factory_state_province);
+
+            let res =
+                list_factories_params(Some(Form(factory_state_province_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 0);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?country=assertion` returns an `Ok` response
+    /// with a factory of similarity greater than 0.2
+    fn test_factories_list_with_similar_country_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_country_params = FACTORY_PARAMS_BASE.clone();
+            let factory_country = String::from(format!("{}_country_similar", FACTORY_NAME_BASE));
+            factory_country_params.country = Some(factory_country);
+
+            let res = list_factories_params(Some(Form(factory_country_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?country=assertion` returns an `Ok` response
+    /// with a factory of similarity less than 0.2
+    fn test_factories_list_with_dissimilar_country_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_country_params = FACTORY_PARAMS_BASE.clone();
+            let factory_country = String::from("dissimilar_ctry");
+            factory_country_params.country = Some(factory_country);
+
+            let res = list_factories_params(Some(Form(factory_country_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 0);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?postal_code=assertion` returns an `Ok` response
+    /// with a factory of similarity greater than 0.2
+    fn test_factories_list_with_similar_postal_code_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_postal_code_params = FACTORY_PARAMS_BASE.clone();
+            let factory_postal_code =
+                String::from(format!("{}_postal_code_similar", FACTORY_NAME_BASE));
+            factory_postal_code_params.postal_code = Some(factory_postal_code);
+
+            let res = list_factories_params(Some(Form(factory_postal_code_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?postal_code=assertion` returns an `Ok` response
+    /// with a factory of similarity less than 0.2
+    fn test_factories_list_with_dissimilar_postal_code_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_postal_code_params = FACTORY_PARAMS_BASE.clone();
+            let factory_postal_code = String::from("dissimilar_code");
+            factory_postal_code_params.postal_code = Some(factory_postal_code);
+
+            let res = list_factories_params(Some(Form(factory_postal_code_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 0);
         })
     }
 

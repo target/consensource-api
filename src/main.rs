@@ -10,6 +10,7 @@ extern crate clap;
 extern crate chrono;
 extern crate common;
 extern crate database as database_manager;
+#[macro_use]
 extern crate diesel;
 extern crate diesel_full_text_search;
 #[macro_use]

@@ -1,4 +1,7 @@
 
+-- Add pg_trgm extension for similarity index searches
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 -- Create custom types
 
 CREATE TYPE Role AS ENUM ('ADMIN', 'TRANSACTOR', 'UNSET_ROLE');
@@ -107,6 +110,9 @@ CREATE TABLE IF NOT EXISTS addresses (
 CREATE INDEX IF NOT EXISTS addresses_organization_id_index ON addresses (organization_id);
 CREATE INDEX IF NOT EXISTS addresses_block_index ON addresses (end_block_num);
 CREATE INDEX IF NOT EXISTS address_text_search ON addresses USING GIN (text_searchable_address_col);
+CREATE INDEX address_city_trgm_idx ON addresses USING GIST (city gist_trgm_ops);
+CREATE INDEX address_state_trgm_idx ON addresses USING GIST (state_province gist_trgm_ops);
+CREATE INDEX address_country_trgm_idx ON addresses USING GIST (country gist_trgm_ops);
 
 CREATE TRIGGER tsvectorupdateaddresses BEFORE INSERT OR UPDATE
 ON addresses FOR EACH ROW EXECUTE PROCEDURE
