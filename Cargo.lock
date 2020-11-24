@@ -510,7 +510,7 @@ dependencies = [
 [[package]]
 name = "database"
 version = "0.1.0"
-source = "git+https://github.com/target/consensource-database.git#5883358ac3f87791c7a565f313e2e7c1fe438381"
+source = "git+https://github.com/target/consensource-database.git?branch=master#5adf715c477fb552fa32a63ae6d46b2eb693d415"
 dependencies = [
  "diesel",
  "diesel_full_text_search",
