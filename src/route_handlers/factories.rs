@@ -10,7 +10,7 @@ use database_manager::tables_schema::{
     addresses, assertions, authorizations, certificates, contacts, organizations, standards,
 };
 use diesel::prelude::*;
-use diesel_full_text_search::{plainto_tsquery, to_tsvector, TsVectorExtensions};
+use diesel_full_text_search::{to_tsquery, to_tsvector, TsVectorExtensions};
 use errors::ApiError;
 use paging::*;
 use rocket::http::uri::Uri;
@@ -179,50 +179,6 @@ fn query_factories(
         count_query = count_query.filter(organizations::name.eq(name));
     }
 
-    if let Some(search) = params.search {
-        let mut matched_cert_org_ids = certificates::table
-            .select(certificates::factory_id)
-            .filter(certificates::start_block_num.le(head_block_num))
-            .filter(certificates::end_block_num.gt(head_block_num))
-            .filter(
-                certificates::standard_id.eq_any(
-                    standards::table
-                        .select(standards::standard_id)
-                        .filter(standards::start_block_num.le(head_block_num))
-                        .filter(standards::end_block_num.gt(head_block_num))
-                        .filter(to_tsvector(standards::name).matches(plainto_tsquery(&search)))
-                        .load::<String>(&*conn)
-                        .unwrap_or_default(),
-                ),
-            )
-            .load::<String>(&*conn)?;
-
-        // `text_searchable_address_col` is already a TS_VECTOR col
-        let mut matched_address_org_ids = addresses::table
-            .select(addresses::organization_id)
-            .filter(addresses::start_block_num.le(head_block_num))
-            .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(text_searchable_address_col.matches(plainto_tsquery(&search)))
-            .load::<String>(&*conn)?;
-
-        let mut matched_org_ids = organizations::table
-            .select(organizations::organization_id)
-            .filter(organizations::start_block_num.le(head_block_num))
-            .filter(organizations::end_block_num.gt(head_block_num))
-            .filter(to_tsvector(organizations::name).matches(plainto_tsquery(&search)))
-            .load::<String>(&*conn)?;
-
-        let mut search_org_ids = vec![];
-
-        search_org_ids.append(&mut matched_cert_org_ids);
-        search_org_ids.append(&mut matched_address_org_ids);
-        search_org_ids.append(&mut matched_org_ids);
-
-        factories_query =
-            factories_query.filter(organizations::organization_id.eq_any(search_org_ids.clone()));
-        count_query = count_query.filter(organizations::organization_id.eq_any(search_org_ids));
-    }
-
     if let Some(city) = params.city {
         let org_ids = addresses::table
             .select(addresses::organization_id)
@@ -279,6 +235,69 @@ fn query_factories(
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
         count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
+    }
+
+    if let Some(search) = params.search {
+        let ts_string = to_ts_string(&search);
+
+        let mut matched_cert_org_ids = certificates::table
+            .select(certificates::factory_id)
+            .filter(certificates::start_block_num.le(head_block_num))
+            .filter(certificates::end_block_num.gt(head_block_num))
+            .filter(
+                certificates::standard_id.eq_any(
+                    standards::table
+                        .select(standards::standard_id)
+                        .filter(standards::start_block_num.le(head_block_num))
+                        .filter(standards::end_block_num.gt(head_block_num))
+                        .filter(
+                            to_tsvector(standards::name)
+                                .matches(to_tsquery(&ts_string))
+                                .or(similarity(standards::name.nullable(), &search)
+                                    .gt(SIMILARITY_THRESHOLD)),
+                        )
+                        .load::<String>(&*conn)
+                        .unwrap_or(vec![]),
+                ),
+            )
+            .load::<String>(&*conn)?;
+
+        // `text_searchable_address_col` is already a TS_VECTOR col
+        let mut matched_address_org_ids = addresses::table
+            .select(addresses::organization_id)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(
+                text_searchable_address_col
+                    .matches(to_tsquery(&ts_string))
+                    .or(similarity(addresses::full_address.nullable(), &search)
+                        .gt(SIMILARITY_THRESHOLD)),
+            )
+            .load::<String>(&*conn)?;
+
+        let mut matched_org_ids = organizations::table
+            .select(organizations::organization_id)
+            .filter(organizations::start_block_num.le(head_block_num))
+            .filter(organizations::end_block_num.gt(head_block_num))
+            .filter(
+                to_tsvector(organizations::name)
+                    .matches(to_tsquery(&ts_string))
+                    .or(similarity(organizations::name.nullable(), &search)
+                        .gt(SIMILARITY_THRESHOLD)),
+            )
+            .load::<String>(&*conn)?;
+
+        let mut search_org_ids = vec![];
+
+        search_org_ids.append(&mut matched_cert_org_ids);
+        search_org_ids.append(&mut matched_address_org_ids);
+        search_org_ids.append(&mut matched_org_ids);
+
+        factories_query = factories_query
+            .filter(organizations::organization_id.eq_any(search_org_ids.clone()))
+            .order_by(similarity(organizations::name.nullable(), search).desc());
+        count_query =
+            count_query.filter(organizations::organization_id.eq_any(search_org_ids.clone()));
     }
 
     let total_count = count_query
@@ -495,6 +514,17 @@ fn apply_paging(params: FactoryParams, head: i64, total_count: i64) -> Result<Js
     get_response_paging_info(params.limit, params.offset, link, total_count)
 }
 
+fn to_ts_string(search: &String) -> String {
+    let mut result = String::from(search.trim());
+    if result == String::from("") {
+        return String::from("");
+    }
+    result = result.replace(" ", ":* ");
+    result = result.replace(" ", " & ");
+    result.push_str(":*");
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -506,6 +536,18 @@ mod tests {
     use diesel::pg::PgConnection;
     use diesel::r2d2::{ConnectionManager, PooledConnection};
     use route_handlers::tests::{get_connection_pool, run_test};
+
+    #[test]
+    fn test_to_ts_string() {
+        let expected1 = "some:* & string:*";
+        assert_eq!(expected1, to_ts_string(&String::from("some string")));
+
+        let expected2 = "";
+        assert_eq!(expected2, to_ts_string(&String::from(" ")));
+
+        let expected3 = "something:*";
+        assert_eq!(expected3, to_ts_string(&String::from("something")));
+    }
 
     #[test]
     /// Test that a GET to `/api/factories/{org_id}` succeeds
