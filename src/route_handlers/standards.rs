@@ -160,12 +160,12 @@ pub fn list_standards_with_params(
         .map_err(|err| ApiError::InternalError(err.to_string()))?
         .into_iter()
         .fold(Vec::new(), |mut acc, (id, name, assertion_id)| {
-            if assertion_id.is_some() {
+            if let Some(assertion_id) = assertion_id {
                 acc.push(
                     [
                         ("standard_id", id),
                         ("standard_name", name),
-                        ("assertion_id", assertion_id.unwrap()),
+                        ("assertion_id", assertion_id),
                     ]
                     .iter()
                     .cloned()

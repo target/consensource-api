@@ -192,7 +192,7 @@ fn query_factories(
                         .filter(standards::end_block_num.gt(head_block_num))
                         .filter(to_tsvector(standards::name).matches(plainto_tsquery(&search)))
                         .load::<String>(&*conn)
-                        .unwrap_or(vec![]),
+                        .unwrap_or_default(),
                 ),
             )
             .load::<String>(&*conn)?;
@@ -220,8 +220,7 @@ fn query_factories(
 
         factories_query =
             factories_query.filter(organizations::organization_id.eq_any(search_org_ids.clone()));
-        count_query =
-            count_query.filter(organizations::organization_id.eq_any(search_org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(search_org_ids));
     }
 
     if let Some(city) = params.city {
@@ -377,18 +376,20 @@ fn query_factories(
             acc
         });
 
-    let mut cert_results: HashMap<String, Vec<(Certificate, Standard, Organization)>> =
-        query_certifications(conn, head_block_num, &factory_ids)?
-            .into_iter()
-            .fold(
-                HashMap::new(),
-                |mut acc, cert_info: (Certificate, Standard, Organization)| {
-                    acc.entry(cert_info.0.factory_id.to_string())
-                        .or_insert_with(Vec::new)
-                        .push(cert_info);
-                    acc
-                },
-            );
+    let mut cert_results: HashMap<
+        String,
+        Vec<(Certificate, Standard, Organization, Option<String>)>,
+    > = query_certifications(conn, head_block_num, &factory_ids)?
+        .into_iter()
+        .fold(
+            HashMap::new(),
+            |mut acc, cert_info: (Certificate, Standard, Organization, Option<String>)| {
+                acc.entry(cert_info.0.factory_id.to_string())
+                    .or_insert_with(Vec::new)
+                    .push(cert_info);
+                acc
+            },
+        );
 
     Ok(json!({
         "data": factory_results.into_iter()
@@ -423,7 +424,7 @@ fn query_certifications(
     conn: DbConn,
     head_block_num: i64,
     factory_ids: &[String],
-) -> Result<Vec<(Certificate, Standard, Organization)>, ApiError> {
+) -> Result<Vec<(Certificate, Standard, Organization, Option<String>)>, ApiError> {
     certificates::table
         .filter(certificates::start_block_num.le(head_block_num))
         .filter(certificates::end_block_num.gt(head_block_num))
@@ -440,10 +441,27 @@ fn query_certifications(
                 .and(organizations::start_block_num.le(head_block_num))
                 .and(organizations::end_block_num.gt(head_block_num))),
         )
-        .load::<(Certificate, Option<Standard>, Option<Organization>)>(&*conn)
+        .left_join(
+            assertions::table.on(assertions::object_id
+                .eq(certificates::certificate_id)
+                .and(assertions::start_block_num.le(head_block_num))
+                .and(assertions::end_block_num.gt(head_block_num))),
+        )
+        .select((
+            certificates::table::all_columns(),
+            standards::table::all_columns().nullable(),
+            organizations::table::all_columns().nullable(),
+            assertions::assertion_id.nullable(),
+        ))
+        .load::<(
+            Certificate,
+            Option<Standard>,
+            Option<Organization>,
+            Option<String>,
+        )>(&*conn)
         .map_err(|err| ApiError::InternalError(err.to_string()))?
         .into_iter()
-        .map(|(cert, std_opt, org_opt)| {
+        .map(|(cert, std_opt, org_opt, assertion_id)| {
             Ok((
                 cert,
                 std_opt.ok_or_else(|| {
@@ -456,6 +474,7 @@ fn query_certifications(
                         "No Certifying Body was provided, but one must exist".to_string(),
                     )
                 })?,
+                assertion_id,
             ))
         })
         .collect()

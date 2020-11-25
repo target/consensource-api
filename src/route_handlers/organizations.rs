@@ -164,7 +164,7 @@ impl ApiFactory {
         db_address: Address,
         db_contacts: Vec<Contact>,
         db_authorizations: Vec<Authorization>,
-        db_certificates: Vec<(Certificate, Standard, Organization)>,
+        db_certificates: Vec<(Certificate, Standard, Organization, Option<String>)>,
     ) -> Self {
         let factory = db_organization.clone();
         ApiFactory {
@@ -180,8 +180,8 @@ impl ApiFactory {
             certificates: Some(
                 db_certificates
                     .into_iter()
-                    .map(|(cert, standard, auditor)| {
-                        ApiCertificate::from((cert, factory.clone(), standard, auditor))
+                    .map(|(cert, standard, auditor, assertion)| {
+                        ApiCertificate::from((cert, factory.clone(), standard, auditor, assertion))
                     })
                     .collect(),
             ),
@@ -194,7 +194,7 @@ impl ApiFactory {
         db_address: Address,
         db_contacts: Vec<Contact>,
         db_authorizations: Vec<Authorization>,
-        db_certificates: Vec<(Certificate, Standard, Organization)>,
+        db_certificates: Vec<(Certificate, Standard, Organization, Option<String>)>,
         assertion_id: Option<String>,
     ) -> Self {
         let factory = db_organization.clone();
@@ -211,8 +211,8 @@ impl ApiFactory {
             certificates: Some(
                 db_certificates
                     .into_iter()
-                    .map(|(cert, standard, auditor)| {
-                        ApiCertificate::from((cert, factory.clone(), standard, auditor))
+                    .map(|(cert, standard, auditor, assertion)| {
+                        ApiCertificate::from((cert, factory.clone(), standard, auditor, assertion))
                     })
                     .collect(),
             ),
