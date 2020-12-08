@@ -11,6 +11,7 @@ use std::collections::HashMap;
 
 #[derive(Default, FromForm, Clone)]
 pub struct StandardParams {
+    name: Option<String>,
     organization_id: Option<String>,
     head: Option<i64>,
 }
@@ -145,6 +146,10 @@ pub fn list_standards_with_params(
                 .and(assertions::end_block_num.gt(head_block_num))),
         )
         .into_boxed();
+
+    if let Some(name) = params.name {
+        standards_query = standards_query.filter(standards::name.eq(name));
+    }
 
     if let Some(organization_id) = params.organization_id {
         standards_query = standards_query.filter(standards::organization_id.eq(organization_id));
