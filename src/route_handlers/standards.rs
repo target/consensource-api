@@ -196,6 +196,8 @@ mod tests {
     use database_manager::custom_types::AssertionTypeEnum;
     use database_manager::models::{NewAssertion, NewStandard};
     use database_manager::tables_schema::{assertions, standards};
+    use diesel::pg::PgConnection;
+    use diesel::r2d2::{ConnectionManager, PooledConnection};
     use route_handlers::tests::{get_connection_pool, run_test};
 
     #[test]
@@ -203,24 +205,15 @@ mod tests {
     /// standards in an array when the DB is populated
     fn test_standards_list_endpoint() {
         run_test(|| {
-            let conn = get_connection_pool();
+            let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
 
-            let standard = NewStandard {
-                start_block_num: 1,
-                end_block_num: 2,
-                standard_id: "test_standard_id".to_string(),
-                organization_id: "test_standards_body_id".to_string(),
-                name: "test_standard_name".to_string(),
-            };
-            diesel::insert_into(standards::table)
-                .values(standard)
-                .execute(&conn)
-                .unwrap();
+            conn = create_test_standard("test_standard", conn);
 
             let response = list_standards_with_params(
                 Some(Form(StandardParams {
-                    organization_id: Some("test_standards_body_id".to_string()),
+                    name: None,
+                    organization_id: Some("test_standard_organization_id".to_string()),
                     head: None,
                 })),
                 DbConn(conn),
@@ -243,39 +236,15 @@ mod tests {
     /// standards with assertions included in an array when the DB is populated
     fn test_standards_list_endpoint_with_assertion() {
         run_test(|| {
-            let conn = get_connection_pool();
+            let mut conn = get_connection_pool();
             conn.begin_test_transaction().unwrap();
 
-            let standard = NewStandard {
-                start_block_num: 1,
-                end_block_num: 2,
-                standard_id: "test_standard_id".to_string(),
-                organization_id: "test_standards_body_id".to_string(),
-                name: "test_standard_name".to_string(),
-            };
-            diesel::insert_into(standards::table)
-                .values(standard)
-                .execute(&conn)
-                .unwrap();
-
-            let assertion = NewAssertion {
-                start_block_num: 1,
-                end_block_num: 2,
-                assertion_id: "test_assertion_id".to_string(),
-                address: "some_state_address".to_string(),
-                assertor_pub_key: "test_key".to_string(),
-                assertion_type: AssertionTypeEnum::Standard,
-                object_id: "test_standard_id".to_string(),
-                data_id: None,
-            };
-            diesel::insert_into(assertions::table)
-                .values(assertion)
-                .execute(&conn)
-                .unwrap();
+            conn = create_test_standard_with_assertion("test_standard", "test_assertion", conn);
 
             let response = list_standards_with_params(
                 Some(Form(StandardParams {
-                    organization_id: Some("test_standards_body_id".to_string()),
+                    name: None,
+                    organization_id: Some("test_standard_organization_id".to_string()),
                     head: None,
                 })),
                 DbConn(conn),
@@ -292,5 +261,85 @@ mod tests {
                 })
             );
         })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/standards?name=` returns an `Ok` response and sends back a
+    /// standard(s) matching the queried name in an array
+    fn test_standards_list_endpoint_with_query() {
+        run_test(|| {
+            let mut conn = get_connection_pool();
+            conn.begin_test_transaction().unwrap();
+
+            conn = create_test_standard_with_assertion("first_standard", "first_assertion", conn);
+            conn = create_test_standard_with_assertion("second_standard", "second_assertion", conn);
+
+            let response = list_standards_with_params(
+                Some(Form(StandardParams {
+                    name: Some("second_standard_name".to_string()),
+                    organization_id: None,
+                    head: None,
+                })),
+                DbConn(conn),
+            );
+
+            assert_eq!(
+                response.unwrap(),
+                json!({
+                    "data": [{
+                        "standard_id": "second_standard_id".to_string(),
+                        "standard_name": "second_standard_name".to_string(),
+                        "assertion_id": "second_assertion_id".to_string(),
+                    }],
+                })
+            );
+        })
+    }
+
+    // helper function to create and insert a test standard and assertion in the database
+    fn create_test_standard_with_assertion(
+        standard_name: &str,
+        assertion_name: &str,
+        mut conn: PooledConnection<ConnectionManager<PgConnection>>,
+    ) -> PooledConnection<ConnectionManager<PgConnection>> {
+        conn = create_test_standard(standard_name, conn);
+
+        let assertion = NewAssertion {
+            start_block_num: 1,
+            end_block_num: std::i64::MAX,
+            assertion_id: String::from(format!("{}_id", assertion_name)),
+            address: "some_state_address".to_string(),
+            assertor_pub_key: String::from(format!("{}_key", assertion_name)),
+            assertion_type: AssertionTypeEnum::Factory,
+            object_id: String::from(format!("{}_id", standard_name)),
+            data_id: None,
+        };
+
+        diesel::insert_into(assertions::table)
+            .values(assertion)
+            .execute(&conn)
+            .unwrap();
+        conn
+    }
+
+    // helper function to create and insert a test standard in the database
+    fn create_test_standard(
+        standard_name: &str,
+        conn: PooledConnection<ConnectionManager<PgConnection>>,
+    ) -> PooledConnection<ConnectionManager<PgConnection>> {
+        let standard = NewStandard {
+            start_block_num: 1,
+            end_block_num: std::i64::MAX,
+            standard_id: String::from(format!("{}_id", standard_name)),
+            organization_id: String::from(format!("{}_organization_id", standard_name)),
+            name: String::from(format!("{}_name", standard_name)),
+        };
+
+        diesel::insert_into(standards::table)
+            .values(standard)
+            .execute(&conn)
+            .unwrap();
+
+        conn
     }
 }
