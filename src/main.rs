@@ -62,17 +62,6 @@ use route_handlers::{
 use std::path::{Path, PathBuf};
 use std::{env, io, process};
 
-#[get("/")]
-fn index() -> io::Result<NamedFile> {
-    NamedFile::open("../client/public/index.html")
-}
-
-// The rank is set high, such that the api get precedence
-#[get("/<file..>", rank = 10)]
-fn files(file: PathBuf) -> Option<NamedFile> {
-    NamedFile::open(Path::new("../client/public/").join(file)).ok()
-}
-
 #[cfg_attr(tarpaulin, skip)]
 fn main() {
     let matches = clap_app!(consensource_api =>
