@@ -255,9 +255,7 @@ fn query_factories(
                                 .matches(to_tsquery(&ts_string))
                                 .or(similarity(standards::name.nullable(), &search)
                                     .gt(SIMILARITY_THRESHOLD)),
-                        )
-                        .load::<String>(&*conn)
-                        .unwrap_or(vec![]),
+                        ),
                 ),
             )
             .load::<String>(&*conn)?;
@@ -296,8 +294,7 @@ fn query_factories(
         factories_query = factories_query
             .filter(organizations::organization_id.eq_any(search_org_ids.clone()))
             .order_by(similarity(organizations::name.nullable(), search).desc());
-        count_query =
-            count_query.filter(organizations::organization_id.eq_any(search_org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(search_org_ids));
     }
 
     let total_count = count_query
@@ -514,9 +511,9 @@ fn apply_paging(params: FactoryParams, head: i64, total_count: i64) -> Result<Js
     get_response_paging_info(params.limit, params.offset, link, total_count)
 }
 
-fn to_ts_string(search: &String) -> String {
+fn to_ts_string(search: &str) -> String {
     let mut result = String::from(search.trim());
-    if result == String::from("") {
+    if result == *"" {
         return String::from("");
     }
     result = result.replace(" ", ":* ");
