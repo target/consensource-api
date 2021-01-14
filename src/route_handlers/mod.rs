@@ -12,6 +12,7 @@ pub mod prom;
 pub mod requests;
 pub mod standards;
 pub mod standards_body;
+pub mod vault;
 
 #[cfg(test)]
 pub mod tests {
@@ -91,6 +92,10 @@ pub mod tests {
                     standards::list_standards_with_params,
                     standards_body::list_standards_belonging_to_org,
                     prom::get_metrics,
+                    vault::store_key,
+                    vault::get_key,
+                    vault::store_key_jwt_failure,
+                    vault::get_key_jwt_failure,
                 ],
             )
             .attach(CORS());
@@ -134,7 +139,13 @@ pub mod tests {
     /// Clear user defined env vars that may have been set during the tests
     ///
     fn clear_env_vars() {
-        let env_vars = vec!["OAUTH_VALIDATION_URL".to_string()];
+        let env_vars = vec![
+            "OAUTH_VALIDATION_URL".to_string(),
+            "VAULT_URL".to_string(),
+            "VAULT_USERNAME".to_string(),
+            "VAULT_PASSWORD".to_string(),
+            "VAULT_PATH".to_string(),
+        ];
 
         for env_var in env_vars {
             env::remove_var(env_var)
@@ -214,6 +225,10 @@ pub mod tests {
         };
 
         json!(user_create).to_string()
+    }
+
+    fn get_key_payload() -> String {
+        json!({"private_key": "test_private_key"}).to_string()
     }
 
     #[test]
@@ -669,6 +684,40 @@ pub mod tests {
         run_test(|| {
             let response = CLIENT.get("/api/prom_metrics").dispatch();
             assert_eq!(response.status(), Status::Ok);
+        })
+    }
+
+    #[test]
+    /// Test that a Get to `/api/key` returns an `Unauthorized` response
+    /// when there is no `Authorization` header in the request
+    fn test_get_key_endpoint() {
+        run_test(|| {
+            env::set_var("OAUTH_VALIDATION_URL", "bad-url");
+            env::set_var("VAULT_URL", "bad-url");
+            env::set_var("VAULT_USERNAME", "vault_user");
+            env::set_var("VAULT_PASSWORD", "vault_password");
+            env::set_var("VAULT_PATH", "consensource");
+            let response = CLIENT.get("/api/key").dispatch();
+            assert_eq!(response.status(), Status::Unauthorized);
+        })
+    }
+
+    #[test]
+    /// Test that a POST to `/api/key` returns an `Unauthorized` response
+    /// when there is no `Authorization` header in the request
+    fn test_post_key_endpoint() {
+        run_test(|| {
+            env::set_var("OAUTH_VALIDATION_URL", "bad-url");
+            env::set_var("VAULT_URL", "bad-url");
+            env::set_var("VAULT_USERNAME", "vault_user");
+            env::set_var("VAULT_PASSWORD", "vault_password");
+            env::set_var("VAULT_PATH", "consensource");
+            let response = CLIENT
+                .post("/api/key")
+                .header(ContentType::JSON)
+                .body(&get_key_payload())
+                .dispatch();
+            assert_eq!(response.status(), Status::Unauthorized);
         })
     }
 }

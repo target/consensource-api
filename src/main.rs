@@ -57,10 +57,16 @@ use log4rs::encode::pattern::PatternEncoder;
 use rocket::response::NamedFile;
 use route_handlers::{
     agents, assertions, authorization, blockchain, blocks, certificates, cors, factories, health,
-    organizations, prom, requests, standards, standards_body,
+    organizations, prom, requests, standards, standards_body, vault,
 };
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 use std::{env, io, process};
+
+pub struct VaultConfig {
+    url: String,
+    token: Mutex<String>,
+}
 
 #[get("/")]
 fn index() -> io::Result<NamedFile> {
@@ -157,6 +163,8 @@ fn main() {
         }
     };
 
+    let vault_url = env::var("VAULT_URL").unwrap_or_else(|_| "".into());
+
     let block_watcher = blocks::BlockWatcher::new(connection_pool.clone());
     let watcher_thread = blocks::WatcherThread::run(block_watcher, 250, &host, port + 1);
 
@@ -168,6 +176,10 @@ fn main() {
         ])
         .manage(connection_pool)
         .manage(validator_url)
+        .manage(VaultConfig {
+            url: vault_url,
+            token: Mutex::new("".to_string()),
+        })
         .mount(
             "/api",
             routes![
@@ -213,6 +225,10 @@ fn main() {
                 standards::list_standards_with_params,
                 standards_body::list_standards_belonging_to_org,
                 prom::get_metrics,
+                vault::get_key,
+                vault::store_key,
+                vault::store_key_jwt_failure,
+                vault::get_key_jwt_failure,
             ],
         )
         .mount("/", routes![index, files])

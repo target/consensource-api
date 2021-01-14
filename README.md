@@ -25,28 +25,36 @@ A SSE server is created along with the REST API in order to send new data to [th
 Details on SSE can be found on [the Mozilla docs](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events).
 The Rust library we are using for SSE can be found [here](https://github.com/adeebahmed/hyper-sse/tree/0.1-no-tokens).
 
+### Private Key Storage
+
+Endpoints are provided at `/api/key` to interface with a [HashiCorp Vault](https://github.com/hashicorp/vault) instance for storing and retrieving user private keys. These endpoints will only work with OAuth enabled as they login to a Vault instance through LDAP. A number of extra environment variables are expected, including `VAULT_URL`, `VAULT_PATH`, `VAULT_USERNAME`, and `VAULT_PASSWORD`. These are expected in a top-level `.env` if using docker compose.
+
+These endpoints expect an Authorization Bearer JWT token as a header that includes a field `username` once decoded.
+
 ## Development
 
 The ConsenSource REST API is written using the [Rocket web framework](https://rocket.rs/).
 It requires nightly, though is very close to being [stabilized](https://github.com/SergioBenitez/Rocket/issues/19).
 
-### Switch over to nightly 
-``` 
-rustup toolchain install nightly rustup default nightly 
+### Switch over to nightly
+
+```
+rustup toolchain install nightly rustup default nightly
 ```
 
-### Install the nightly linter 
+### Install the nightly linter
 
-``` 
-rustup component add rustfmt --toolchain nightly 
+```
+rustup component add rustfmt --toolchain nightly
 ```
 
-### Format (linting) 
-``` 
-cargo +nightly fmt -- --check 
+### Format (linting)
+
+```
+cargo +nightly fmt -- --check
 ```
 
-### Test 
+### Test
 
 Most of the Rest API tests are integration tests. To start up a Postgres and Rest API instance and run these tests with code coverage metrics:
 
@@ -76,9 +84,10 @@ From there you can run `cargo test -- --nocapture --test-threads=1` to run all t
 
 As you update your code, the shared volume mounted to `/api` will allow you to run tests in the container with your most up-to-date code.
 
-### Build 
-``` 
-cargo build 
+### Build
+
+```
+cargo build
 ```
 
 ### Run

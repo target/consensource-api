@@ -49,7 +49,7 @@ pub fn create_user(
     }
 }
 
-/// If a user creation fails due to JWT authentication issues,
+/// If a user creation fails due to JWT authorization issues,
 /// return a more specific error message.
 ///
 /// Without this endpoint, when JWT auth fails there is nowhere to forward

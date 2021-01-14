@@ -13,11 +13,13 @@ impl<'a, 'r> FromRequest<'a, 'r> for JWT {
     type Error = ();
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
         if let Ok(oauth_url) = env::var("OAUTH_VALIDATION_URL") {
-            let auth: Vec<_> = request.headers().get("Authentication").collect();
+            let auth: Vec<_> = request.headers().get("Authorization").collect();
             if auth.len() != 1 {
                 return Outcome::Forward(());
             }
-            let token = auth[0].get(7..).expect("Auth header not in correct format");
+            let token = auth[0]
+                .get(7..)
+                .expect("Authorization header not in correct format");
             let jwks = get_jwks(&oauth_url).expect("Failed to fetch keys");
             let validations = vec![
                 alcoholic_jwt::Validation::Issuer(oauth_url),
