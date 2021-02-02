@@ -46,6 +46,9 @@ fn get_action_from_transaction(transaction: &Transaction) -> String {
         payload::CertificateRegistryPayload_Action::ISSUE_CERTIFICATE => {
             "issue certificate".to_string()
         }
+        payload::CertificateRegistryPayload_Action::UPDATE_CERTIFICATE => {
+            "update certificate".to_string()
+        }
         payload::CertificateRegistryPayload_Action::CREATE_STANDARD => {
             "create standard".to_string()
         }
@@ -162,6 +165,13 @@ mod tests {
         let batch = make_batch(payload::CertificateRegistryPayload_Action::ISSUE_CERTIFICATE);
         let actions = get_actions_from_batch(&batch);
         assert_eq!(actions, vec!["issue certificate".to_string()]);
+    }
+    #[test]
+    /// Test that an UPDATE_CERTIFICATE action can be unpacked correctly
+    fn test_update_certificate_action() {
+        let batch = make_batch(payload::CertificateRegistryPayload_Action::UPDATE_CERTIFICATE);
+        let actions = get_actions_from_batch(&batch);
+        assert_eq!(actions, vec!["update certificate".to_string()]);
     }
     #[test]
     /// Test that a CREATE_STANDARD action can be unpacked correctly
