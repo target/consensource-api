@@ -13,6 +13,7 @@ use std::collections::HashMap;
 #[derive(Default, FromForm, Clone)]
 pub struct StandardBodyParams {
     organization_id: String,
+    standard_id: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
     head: Option<i64>,
@@ -33,19 +34,31 @@ pub fn list_standards_belonging_to_org(
     let head_block_num: i64 = get_head_block_num(params.head, &conn)?;
 
     let link_params = params.clone();
-    let total_count = standards::table
+
+    let mut count_query = standards::table
         .filter(standards::start_block_num.le(head_block_num))
         .filter(standards::end_block_num.gt(head_block_num))
         .filter(standards::organization_id.eq(params.organization_id.clone()))
+        .into_boxed();
+
+    let mut standard_query = standards::table
+        .filter(standards::start_block_num.le(head_block_num))
+        .filter(standards::end_block_num.gt(head_block_num))
+        .filter(standards::organization_id.eq(params.organization_id))
+        .into_boxed();
+
+    if let Some(standard_id) = params.standard_id {
+        count_query = count_query.filter(standards::standard_id.eq(standard_id.clone()));
+        standard_query = standard_query.filter(standards::standard_id.eq(standard_id));
+    }
+
+    let total_count = count_query
         .count()
         .get_result(&*conn)
         .map_err(|err| ApiError::InternalError(err.to_string()))?;
     let paging_info = apply_paging(link_params, head_block_num, total_count)?;
 
-    let standards_results = standards::table
-        .filter(standards::start_block_num.le(head_block_num))
-        .filter(standards::end_block_num.gt(head_block_num))
-        .filter(standards::organization_id.eq(params.organization_id))
+    let standards_results = standard_query
         .limit(params.limit.unwrap_or(DEFAULT_LIMIT))
         .offset(params.offset.unwrap_or(DEFAULT_OFFSET))
         .left_join(
@@ -156,6 +169,7 @@ mod tests {
             let response = list_standards_belonging_to_org(
                 Some(Form(StandardBodyParams {
                     organization_id: "test_standards_body_id".to_string(),
+                    standard_id: None,
                     limit: None,
                     offset: None,
                     head: None,
@@ -245,6 +259,7 @@ mod tests {
             let response = list_standards_belonging_to_org(
                 Some(Form(StandardBodyParams {
                     organization_id: "test_standards_body_id".to_string(),
+                    standard_id: None,
                     limit: None,
                     offset: None,
                     head: None,

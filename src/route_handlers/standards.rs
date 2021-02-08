@@ -13,6 +13,7 @@ use std::collections::HashMap;
 pub struct StandardParams {
     name: Option<String>,
     organization_id: Option<String>,
+    standard_id: Option<String>,
     head: Option<i64>,
 }
 
@@ -155,6 +156,10 @@ pub fn list_standards_with_params(
         standards_query = standards_query.filter(standards::organization_id.eq(organization_id));
     }
 
+    if let Some(standard_id) = params.standard_id {
+        standards_query = standards_query.filter(standards::standard_id.eq(standard_id));
+    }
+
     let standards = standards_query
         .select((
             standards::standard_id,
@@ -213,6 +218,7 @@ mod tests {
             let response = list_standards_with_params(
                 Some(Form(StandardParams {
                     name: None,
+                    standard_id: None,
                     organization_id: Some("test_standard_organization_id".to_string()),
                     head: None,
                 })),
@@ -244,6 +250,7 @@ mod tests {
             let response = list_standards_with_params(
                 Some(Form(StandardParams {
                     name: None,
+                    standard_id: None,
                     organization_id: Some("test_standard_organization_id".to_string()),
                     head: None,
                 })),
@@ -277,6 +284,7 @@ mod tests {
             let response = list_standards_with_params(
                 Some(Form(StandardParams {
                     name: Some("second_standard_name".to_string()),
+                    standard_id: None,
                     organization_id: None,
                     head: None,
                 })),
