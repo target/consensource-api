@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use common::proto::payload;
 use database::DbConn;
-use protobuf::ProtobufError;
+use protobuf::{Message, ProtobufError};
 use route_handlers::authorization::find_user_by_pub_key;
 use route_handlers::prom::increment_action;
 use sawtooth_sdk::messages::batch::{Batch, BatchHeader};
@@ -10,7 +10,7 @@ use sawtooth_sdk::messages::transaction::Transaction;
 /// Returns the public key field from a Batch's BatchHeader
 fn get_public_key_from_batch(batch: Batch) -> Result<String, ProtobufError> {
     let header_result: Result<BatchHeader, ProtobufError> =
-        protobuf::parse_from_bytes(&batch.header);
+        Message::parse_from_bytes(&batch.header);
     match header_result {
         Ok(header) => Ok(header.get_signer_public_key().to_string()),
         Err(e) => Err(e),
@@ -29,7 +29,7 @@ fn get_actions_from_batch(batch: &Batch) -> Vec<String> {
 ///Match on the action field of a Transactino and return a short string description
 fn get_action_from_transaction(transaction: &Transaction) -> String {
     let payload_result: Result<payload::CertificateRegistryPayload, ProtobufError> =
-        protobuf::parse_from_bytes(&transaction.get_payload());
+        Message::parse_from_bytes(&transaction.get_payload());
     let payload = payload_result.unwrap();
     match payload.get_action() {
         payload::CertificateRegistryPayload_Action::UNSET_ACTION => "unset action".to_string(),
@@ -96,13 +96,13 @@ mod tests {
 
     impl IntoBytes for payload::CertificateRegistryPayload {
         fn into_bytes(self) -> Result<Vec<u8>, protobuf::error::ProtobufError> {
-            protobuf::Message::write_to_bytes(&self)
+            Message::write_to_bytes(&self)
         }
     }
 
     impl IntoBytes for sawtooth_sdk::messages::batch::BatchHeader {
         fn into_bytes(self) -> Result<Vec<u8>, protobuf::error::ProtobufError> {
-            protobuf::Message::write_to_bytes(&self)
+            Message::write_to_bytes(&self)
         }
     }
 

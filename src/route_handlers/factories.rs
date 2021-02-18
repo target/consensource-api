@@ -23,10 +23,12 @@ use route_handlers::prom::increment_http_req;
 pub struct FactoryParams {
     name: Option<String>,
     search: Option<String>, // Used for full text search
+    street: Option<String>,
     city: Option<String>,
     state_province: Option<String>,
     country: Option<String>,
     postal_code: Option<String>,
+    certificate: Option<String>,
     limit: Option<i64>,
     offset: Option<i64>,
     head: Option<i64>,
@@ -179,6 +181,25 @@ fn query_factories(
         count_query = count_query.filter(organizations::name.eq(name));
     }
 
+    if let Some(street) = params.street {
+        let org_ids = addresses::table
+            .select(addresses::organization_id)
+            .filter(addresses::start_block_num.le(head_block_num))
+            .filter(addresses::end_block_num.gt(head_block_num))
+            .filter(
+                similarity(addresses::street_line_1.nullable(), street.clone())
+                    .gt(SIMILARITY_THRESHOLD)
+                    .or(similarity(addresses::street_line_2.nullable(), street)
+                        .gt(SIMILARITY_THRESHOLD)),
+            )
+            .order_by(addresses::street_line_1.desc())
+            .load::<String>(&*conn)?;
+
+        factories_query =
+            factories_query.filter(organizations::organization_id.eq_any(org_ids.clone()));
+        count_query = count_query.filter(organizations::organization_id.eq_any(org_ids));
+    }
+
     if let Some(city) = params.city {
         let org_ids = addresses::table
             .select(addresses::organization_id)
@@ -208,11 +229,27 @@ fn query_factories(
     }
 
     if let Some(country) = params.country {
-        let org_ids = addresses::table
+        //factories provided in format /api/factories?country=USA,Peru,Vietnam
+        let countries: Vec<&str> = country.split(',').collect();
+        let mut org_ids_query = addresses::table
             .select(addresses::organization_id)
-            .filter(addresses::start_block_num.le(head_block_num))
-            .filter(addresses::end_block_num.gt(head_block_num))
-            .filter(similarity(addresses::country.nullable(), country).gt(SIMILARITY_THRESHOLD))
+            .into_boxed();
+
+        for country in countries.iter() {
+            if !country.is_empty() {
+                org_ids_query = org_ids_query.or_filter(
+                    addresses::start_block_num
+                        .le(head_block_num)
+                        .and(addresses::end_block_num.gt(head_block_num))
+                        .and(
+                            similarity(addresses::country.nullable(), country)
+                                .gt(SIMILARITY_THRESHOLD),
+                        ),
+                );
+            }
+        }
+
+        let org_ids = org_ids_query
             .order_by(addresses::country.desc())
             .load::<String>(&*conn)?;
 
@@ -295,6 +332,36 @@ fn query_factories(
             .filter(organizations::organization_id.eq_any(search_org_ids.clone()))
             .order_by(similarity(organizations::name.nullable(), search).desc());
         count_query = count_query.filter(organizations::organization_id.eq_any(search_org_ids));
+    }
+
+    if let Some(certificate) = params.certificate {
+        //standard names provided in format /api/factories?certificate=Standard1,Standard2
+        let cert_standard_names: Vec<&str> = certificate.split(',').collect();
+        let mut matched_cert_org_query = certificates::table
+            .select(certificates::factory_id)
+            .into_boxed();
+        for name in cert_standard_names.iter() {
+            matched_cert_org_query = matched_cert_org_query.or_filter(
+                certificates::start_block_num
+                    .le(head_block_num)
+                    .and(certificates::end_block_num.gt(head_block_num))
+                    .and(
+                        certificates::standard_id.eq_any(
+                            standards::table
+                                .select(standards::standard_id)
+                                .filter(standards::start_block_num.le(head_block_num))
+                                .filter(standards::end_block_num.gt(head_block_num))
+                                .filter(standards::name.eq(name)),
+                        ),
+                    ),
+            )
+        }
+        let matched_cert_org_ids = matched_cert_org_query.load::<String>(&*conn)?;
+
+        factories_query = factories_query
+            .filter(organizations::organization_id.eq_any(matched_cert_org_ids.clone()));
+        count_query =
+            count_query.filter(organizations::organization_id.eq_any(matched_cert_org_ids));
     }
 
     let total_count = count_query
@@ -589,6 +656,42 @@ mod tests {
     }
 
     #[test]
+    /// Test that a GET to `/api/factories?street=assertion` returns an `Ok` response
+    /// with a factory of similarity greater than 0.2
+    fn test_factories_list_with_similar_street_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_street_params = FACTORY_PARAMS_BASE.clone();
+            let factory_street = String::from(format!("{}_street_similar", FACTORY_NAME_BASE));
+            factory_street_params.street = Some(factory_street);
+
+            let res = list_factories_params(Some(Form(factory_street_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?street=assertion` returns an `Ok` response
+    /// with a factory of similarity less than 0.2
+    fn test_factories_list_with_dissimilar_street_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_street_params = FACTORY_PARAMS_BASE.clone();
+            let factory_street = String::from("dissimilar_street");
+            factory_street_params.street = Some(factory_street);
+
+            let res = list_factories_params(Some(Form(factory_street_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 0);
+        })
+    }
+
+    #[test]
     /// Test that a GET to `/api/factories?city=assertion` returns an `Ok` response
     /// with a factory of similarity greater than 0.2
     fn test_factories_list_with_similar_city_param() {
@@ -690,6 +793,45 @@ mod tests {
 
             let mut factory_country_params = FACTORY_PARAMS_BASE.clone();
             let factory_country = String::from("dissimilar_ctry");
+            factory_country_params.country = Some(factory_country);
+
+            let res = list_factories_params(Some(Form(factory_country_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 0);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?country=assertion,other` returns an `Ok` response
+    /// with a factory of similarity greater than 0.2
+    fn test_factories_list_with_multiple_similar_country_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_country_params = FACTORY_PARAMS_BASE.clone();
+            let factory_country = String::from(format!(
+                "{}_country_similar,other_country",
+                FACTORY_NAME_BASE
+            ));
+            factory_country_params.country = Some(factory_country);
+
+            let res = list_factories_params(Some(Form(factory_country_params)), DbConn(conn));
+            let num_factories = res.unwrap().get("data").unwrap().as_array().unwrap().len();
+
+            assert_eq!(num_factories, 1);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/factories?country=assertion,other` returns an `Ok` response
+    /// with a factory of similarity less than 0.2
+    fn test_factories_list_with_multiple_dissimilar_country_param() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut factory_country_params = FACTORY_PARAMS_BASE.clone();
+            let factory_country = String::from("dissimilar_ctry,other_dissim_ctry");
             factory_country_params.country = Some(factory_country);
 
             let res = list_factories_params(Some(Form(factory_country_params)), DbConn(conn));
@@ -813,6 +955,57 @@ mod tests {
         })
     }
 
+    #[test]
+    /// Test that the `certificate` param will match on the standard name of certs that the factory holds
+    fn test_factories_list_endpoint_with_cert_std_name() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut cert_std_name_search_params = FACTORY_PARAMS_BASE.clone();
+            let cert_std_name = String::from(format!("{}_name", STD_NAME_BASE));
+            cert_std_name_search_params.certificate = Some(cert_std_name);
+
+            let cert_std_name_search_res =
+                list_factories_params(Some(Form(cert_std_name_search_params)), DbConn(conn));
+
+            let num_factories = cert_std_name_search_res
+                .unwrap()
+                .get("data")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len();
+
+            assert_eq!(num_factories, 1)
+        })
+    }
+
+    #[test]
+    /// Test that the `certificate` param will match on the standard name of certs that the factory holds
+    /// with multiple comma-separated names
+    fn test_factories_list_endpoint_with_multiple_cert_std_name() {
+        run_test(|| {
+            let conn = setup_factory_db(false);
+
+            let mut cert_std_name_search_params = FACTORY_PARAMS_BASE.clone();
+            let cert_std_name = String::from(format!("{}_name,other_thing", STD_NAME_BASE));
+            cert_std_name_search_params.certificate = Some(cert_std_name);
+
+            let cert_std_name_search_res =
+                list_factories_params(Some(Form(cert_std_name_search_params)), DbConn(conn));
+
+            let num_factories = cert_std_name_search_res
+                .unwrap()
+                .get("data")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len();
+
+            assert_eq!(num_factories, 1)
+        })
+    }
+
     static FACTORY_NAME_BASE: &str = "test_factory";
     static FACTORY_NAME_ASSERTION_BASE: &str = "test_factory_assertion";
     static STD_NAME_BASE: &str = "test_std";
@@ -821,10 +1014,12 @@ mod tests {
     static FACTORY_PARAMS_BASE: FactoryParams = FactoryParams {
         name: None,
         search: None,
+        street: None,
         city: None,
         state_province: None,
         country: None,
         postal_code: None,
+        certificate: None,
         limit: Some(100 as i64),
         offset: Some(0 as i64),
         head: Some(1 as i64),

@@ -2,7 +2,7 @@ use database::DbConn;
 use errors::ApiError;
 use logging;
 use protobuf;
-use protobuf::ProtobufEnum;
+use protobuf::{Message, ProtobufEnum};
 use rocket::request::Form;
 use rocket::Data;
 use rocket::State;
@@ -70,7 +70,7 @@ pub fn submit_batches(
     let mut buffer = Vec::new();
     data.open().read_to_end(&mut buffer).unwrap();
     let batch_list: BatchList =
-        protobuf::parse_from_bytes(&buffer).map_err(|err| ApiError::BadRequest(err.to_string()))?;
+        Message::parse_from_bytes(&buffer).map_err(|err| ApiError::BadRequest(err.to_string()))?;
     let batch_ids: Vec<String> = batch_list
         .batches
         .iter()
@@ -186,5 +186,5 @@ where
     let response_msg = future
         .get()
         .map_err(|err| format!("Unable to retrieve response from validator: {}", err))?;
-    Ok(protobuf::parse_from_bytes(&response_msg.content).expect("Unable to parse protobuf"))
+    Ok(Message::parse_from_bytes(&response_msg.content).expect("Unable to parse protobuf"))
 }
