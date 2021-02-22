@@ -590,7 +590,7 @@ fn to_ts_string(search: &str) -> String {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
     use database_manager::custom_types::{AssertionTypeEnum, OrganizationTypeEnum, RoleEnum};
     use database_manager::models::{
@@ -1006,9 +1006,9 @@ mod tests {
         })
     }
 
-    static FACTORY_NAME_BASE: &str = "test_factory";
+    pub static FACTORY_NAME_BASE: &str = "test_factory";
     static FACTORY_NAME_ASSERTION_BASE: &str = "test_factory_assertion";
-    static STD_NAME_BASE: &str = "test_std";
+    pub static STD_NAME_BASE: &str = "test_std";
     static ASSERTION_NAME_BASE: &str = "test_assertion";
 
     static FACTORY_PARAMS_BASE: FactoryParams = FactoryParams {
@@ -1117,7 +1117,7 @@ mod tests {
         res
     }
 
-    fn setup_factory_db(
+    pub fn setup_factory_db(
         include_assertion: bool,
     ) -> PooledConnection<ConnectionManager<PgConnection>> {
         let mut conn = get_connection_pool();

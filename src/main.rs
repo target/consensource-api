@@ -9,6 +9,7 @@
 extern crate clap;
 extern crate chrono;
 extern crate common;
+extern crate csv;
 extern crate database as database_manager;
 #[macro_use]
 extern crate diesel;
@@ -56,8 +57,8 @@ use log4rs::config::{Appender, Config, Root};
 use log4rs::encode::pattern::PatternEncoder;
 use rocket::response::NamedFile;
 use route_handlers::{
-    agents, assertions, authorization, blockchain, blocks, certificates, cors, factories, health,
-    organizations, prom, requests, standards, standards_body, vault,
+    agents, assertions, authorization, blockchain, blocks, certificates, cors, factories, file,
+    health, organizations, prom, requests, standards, standards_body, vault,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -229,6 +230,7 @@ fn main() {
                 vault::store_key,
                 vault::store_key_jwt_failure,
                 vault::get_key_jwt_failure,
+                file::get_factories,
             ],
         )
         .mount("/", routes![index, files])

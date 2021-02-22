@@ -6,6 +6,7 @@ pub mod blocks;
 pub mod certificates;
 pub mod cors;
 pub mod factories;
+pub mod file;
 pub mod health;
 pub mod organizations;
 pub mod prom;
@@ -96,6 +97,7 @@ pub mod tests {
                     vault::get_key,
                     vault::store_key_jwt_failure,
                     vault::get_key_jwt_failure,
+                    file::get_factories,
                 ],
             )
             .attach(CORS());
@@ -718,6 +720,16 @@ pub mod tests {
                 .body(&get_key_payload())
                 .dispatch();
             assert_eq!(response.status(), Status::Unauthorized);
+        })
+    }
+
+    #[test]
+    /// Test that a GET to `/api/csv/factories.csv` returns an `Ok` response and sends back an
+    /// empty file
+    fn test_get_factory_csv_file() {
+        run_test(|| {
+            let response = CLIENT.get("/api/csv/factories.csv").dispatch();
+            assert_eq!(response.status(), Status::Ok);
         })
     }
 }

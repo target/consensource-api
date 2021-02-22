@@ -9,6 +9,7 @@ bcrypt = "0.2"
 chrono = "0.4"
 clap = "2"
 common = { git = "https://github.com/target/consensource-common.git", branch = "master" }
+csv = "1.1"
 database = { git = "https://github.com/target/consensource-database.git", branch = "master" }
 diesel = { version = "1.0.0", features = ["postgres", "r2d2"] }
 diesel_full_text_search = "1.0.1"
